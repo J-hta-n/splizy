@@ -1,0 +1,2 @@
+python-telegram-bot[webhooks]==22.0
+supabase==2.15.1
