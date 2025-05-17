@@ -53,7 +53,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     supabase.table("groups").upsert({"id": group_id}).execute()
 
     await update.message.reply_text(
-        f"Hello {username}! I help make splitting bills easier for you and your friends using the convenience of telegram group!\n\n"
+        f"Hello {username}! I help make splitting bills easier for you and your friends with the convenience of telegram groups!\n\n"
         "Please refer to /help for the available commands to get started."
     )
     return ConversationHandler.END
@@ -603,8 +603,8 @@ async def edit_or_go_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         data = context.user_data
         keyboard = [
             [
-                InlineKeyboardButton("✅ Yes", callback_data="confirm_delete"),
                 InlineKeyboardButton("❌ No", callback_data="cancel_delete"),
+                InlineKeyboardButton("✅ Yes", callback_data="confirm_delete"),
             ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
