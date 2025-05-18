@@ -1,5 +1,6 @@
 import logging
 import os
+from decimal import Decimal
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -14,7 +15,8 @@ from telegram.ext import (
 
 from currencies import COMMON_CURRENCY_CODES_STRING
 from database import supabase
-from parsers import parse_amount, parse_username
+from parsers import parse_amount, parse_currency, parse_multiplier, parse_username
+from utils import get_2dp_str, group_only
 
 # Set up logging
 logging.basicConfig(
@@ -28,33 +30,28 @@ TELEBOT_TOKEN = os.environ.get("TELEBOT_TOKEN")
 SECRET_TOKEN = os.environ.get("SECRET_TOKEN")
 PORT = int(os.environ.get("PORT", "8000"))
 
-# States for the conversation handler
-(
-    REGISTER_USERS,
-    EXPENSE_NAME,
-    EXPENSE_AMOUNT,
-    EXPENSE_PAID_BY,
-    EXPENSE_SPLIT_TYPE,
-    EXPENSE_PARTICIPANTS,
-    EXPENSE_CONFIRM,
-    VIEW_EXPENSE,
-    EDIT_OR_GO_BACK,
-    DELETE_EXPENSE,
-) = range(10)
-
 
 #################### BASIC COMMANDS ####################
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
     username = user.username or user.first_name
+    chat_type = update.effective_chat.type
+    if chat_type not in ["group", "supergroup"]:
+        await update.message.reply_text(
+            f"Hello {username}! I help make splitting bills easier for you and your friends with the convenience of telegram groups, "
+            "so all of you can enjoy the group trip without worrying about the hassle of bill splits!\n\n"
+            "To get started, add this bot into a telegram bot and activate it with /start, then register all participants' telegram handles "
+            "with /register, and you're all set!"
+        )
+        return ConversationHandler.END
 
     # Register group chat id if not already registered
     group_id = update.message.chat.id
     supabase.table("groups").upsert({"id": group_id}).execute()
-
     await update.message.reply_text(
-        f"Hello {username}! I help make splitting bills easier for you and your friends with the convenience of telegram groups!\n\n"
-        "Please refer to /help for the available commands to get started."
+        "Hello there! I help make splitting bills easier for you all with the convenience of telegram groups.\n\n"
+        "To get started, register all group members' telegram handles with /register, and refer "
+        "to /help for the full list of available commands. Have a fun trip!"
     )
     return ConversationHandler.END
 
@@ -63,10 +60,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     message = (
         "📋 Here's what Splizy can do!\n\n"
         "/register - Register the telegram handles of all participants\n"
+        "/set_exp_currency - Set the default expense currency\n"
+        "/set_final_currency - Set the currency for settlement"
         "/add - Add a new expense\n"
-        "/addreceipt - Add expense from a receipt photo (coming soon)\n"
+        "/add_receipt - Add expense from a receipt photo (coming soon)\n"
         "/view - View all expenses (Can edit and delete from here as well)\n"
-        "/settleup - Get settlement recommendations\n"
+        "/settleup - Get settlement recommendations (coming soon)\n"
     )
     await update.message.reply_text(message)
     return ConversationHandler.END
@@ -78,7 +77,71 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+############### SET DIFFERENT CURRENCIES FLOW ####################
+SET_EXPENSE_CURRENCY = 0
+SET_SETTLEUP_CURRENCY = 1
+
+
+@group_only
+async def set_expense_currency_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    await update.message.reply_text(
+        "Please enter the default expense currency you want to set, eg 'MYR', 'USD', 'SGD'.\n\n"
+        f"Available currencies:\n{COMMON_CURRENCY_CODES_STRING}"
+    )
+    return SET_EXPENSE_CURRENCY
+
+
+async def set_expense_currency(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    is_valid, currency = parse_currency(update.message.text.upper())
+    if not is_valid:
+        await update.message.reply_text(currency)
+        return SET_EXPENSE_CURRENCY
+
+    group_id = update.message.chat.id
+    supabase.table("groups").update({"expense_currency": currency}).eq(
+        "id", group_id
+    ).execute()
+
+    await update.message.reply_text(f"Expense currency set to {currency}.")
+    return ConversationHandler.END
+
+
+async def set_settleup_currency_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    await update.message.reply_text(
+        "Please enter the settleup currency you want to set, eg 'MYR', 'USD', 'SGD'.\n\n"
+        f"Available currencies:\n{COMMON_CURRENCY_CODES_STRING}"
+    )
+    return SET_SETTLEUP_CURRENCY
+
+
+async def set_settleup_currency(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    is_valid, currency = parse_currency(update.message.text.upper())
+    if not is_valid:
+        await update.message.reply_text(currency)
+        return SET_EXPENSE_CURRENCY
+
+    group_id = update.message.chat.id
+    supabase.table("groups").update({"settleup_currency": currency}).eq(
+        "id", group_id
+    ).execute()
+
+    await update.message.reply_text(f"Expense currency set to {currency}.")
+    return ConversationHandler.END
+
+
 #################### REGISTER USERS FLOW ####################
+REGISTER_USERS = 2
+
+
+@group_only
 async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Register group chat id if not already registered
     group_id = update.message.chat.id
@@ -143,7 +206,25 @@ async def register_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 #################### ADD NEW BILL FLOW ####################
+(
+    EXPENSE_NAME,
+    EXPENSE_AMOUNT,
+    EXPENSE_PAID_BY,
+    EXPENSE_SPLIT_TYPE,
+    EXPENSE_PARTICIPANTS,
+    EXPENSE_CUSTOM_SPLIT,
+    EXPENSE_CONFIRM,
+    EXPENSE_CUSTOM_AMOUNT,
+    EXPENSE_MULTIPLIER,
+    VIEW_EXPENSE,
+    EDIT_OR_GO_BACK,
+    DELETE_EXPENSE,
+) = range(3, 15)
+
+
+@group_only
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
     await update.message.reply_text(
         "Let's add a new expense! Tell me what this is for? Eg 'Hotpot dinner'"
     )
@@ -168,10 +249,11 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         .execute()
         .data[0]["expense_currency"]
     )
+    context.user_data["expense_currency"] = expense_currency
     context.user_data["currency"] = expense_currency
     await update.message.reply_text(
         "How much is it? Enter just the numeric value, eg '50.10'\n\n"
-        f"(Expense currency is in {expense_currency}, override by adding currency code in front, eg 'MYR 100')"
+        f"(Expense currency is in {expense_currency}, override by adding currency code in front, eg 'KRW 100 or MYR 100')"
     )
     return EXPENSE_AMOUNT
 
@@ -243,27 +325,42 @@ async def expense_split_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     split_type = query.data
+    data = context.user_data
+
     if split_type == "split_equal_all":
-        context.user_data["is_equal_split"] = True
-        context.user_data["split_type"] = "equal_all"
+        data["is_equal_split"] = True
+        data["split_type"] = "equal_all"
 
         await send_confirmation_form(update, context, False)
         return EXPENSE_CONFIRM
     elif split_type == "split_equal_some":
-        context.user_data["is_equal_split"] = True
-        context.user_data["split_type"] = "equal_some"
+        data["is_equal_split"] = True
+        data["split_type"] = "equal_some"
 
         # Since entire keyboard has to be rebuilt on every callback, state is managed with a bool array to minimise latency
         # and to preserve ordering of the inline buttons, as opposed to using a adding/removing strings in a string array
-        context.user_data["participant_selections"] = [True] * len(
-            context.user_data["all_participants"]
-        )
+        if "participant_selections" not in data:
+            data["participant_selections"] = [True] * len(data["all_participants"])
         await send_multiselect_users(update, context)
         return EXPENSE_PARTICIPANTS
     elif split_type == "split_custom":
-        context.user_data["is_equal_split"] = False
-        context.user_data["split_type"] = "custom"
-        pass
+        data["is_equal_split"] = False
+        data["split_type"] = "custom"
+
+        # Similarly, use the bool array implementation
+        if "has_mult" not in data:
+            data["has_mult"] = False
+        if "mult_val" not in data:
+            data["mult_val"] = 1.19
+        total_participants = len(data["all_participants"])
+        if "participant_selections" not in data:
+            data["participant_selections"] = [True] * total_participants
+        if "custom_amounts" not in data:
+            data["custom_amounts"] = [
+                data["amount"] / total_participants
+            ] * total_participants
+        await send_custom_multiselect_users(update, context)
+        return EXPENSE_CUSTOM_SPLIT
 
 
 async def expense_participants(
@@ -273,9 +370,10 @@ async def expense_participants(
     query = update.callback_query
     await query.answer()
 
-    if query.data != "participants_done":
+    action = query.data
+    if action != "participants_done":
         # Toggle participant selection
-        index = int(query.data)
+        index = int(action)
         context.user_data["participant_selections"][index] = not context.user_data[
             "participant_selections"
         ][index]
@@ -323,26 +421,188 @@ async def send_multiselect_users(
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text(
         "👥 Select participants (all selected by default).\n"
-        "Click on a user to toggle selection. Click 'Done' when finished.\n"
+        "Tap on a user to toggle selection. Tap 'Done' when finished.\n"
         f"{validation_error if validation_error else ''}",
         reply_markup=reply_markup,
     )
 
 
+async def expense_custom_split(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    action = query.data
+
+    data = context.user_data
+    if action != "custom_done":
+        entity, field = action.split("_")
+        if entity.isdigit():
+            index = int(entity)
+            if field == "toggle":
+                data["participant_selections"][index] = not data[
+                    "participant_selections"
+                ][index]
+                await send_custom_multiselect_users(update, context)
+                return EXPENSE_CUSTOM_SPLIT
+            elif field == "amount":
+                data["index"] = index
+                await query.edit_message_text(
+                    f"Please enter the amount spent by @{data['all_participants'][index]}:"
+                )
+                return EXPENSE_CUSTOM_AMOUNT
+        else:
+            if field == "toggle":
+                data["has_mult"] = not data["has_mult"]
+                await send_custom_multiselect_users(update, context)
+                return EXPENSE_CUSTOM_SPLIT
+            elif field == "amount":
+                await query.edit_message_text(
+                    "Please enter a multiplier between 1 and 2, eg 1.19"
+                )
+                return EXPENSE_MULTIPLIER
+
+    # Custom split done, validate first
+    if not any(context.user_data["participant_selections"]):
+        await send_custom_multiselect_users(
+            update, context, False, "Please select at least one participant."
+        )
+        return EXPENSE_CUSTOM_SPLIT
+
+    has_mult, mult_val = data["has_mult"], data["mult_val"]
+    data["selected_participants"] = [
+        username
+        for idx, username in enumerate(data["all_participants"])
+        if data["participant_selections"][idx]
+    ]
+    data["amount"] = sum(
+        [
+            (amount * Decimal(mult_val) if has_mult else amount)
+            for idx, amount in enumerate(data["custom_amounts"])
+            if data["participant_selections"][idx]
+        ]
+    )
+    await send_confirmation_form(update, context, False)
+    return EXPENSE_CONFIRM
+
+
+async def expense_custom_amount(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    is_valid, result = parse_amount(update.message.text)
+    if not is_valid:
+        await update.message.reply_text(result)  # result is error msg if invalid
+        return EXPENSE_CUSTOM_AMOUNT
+    _, amount = result
+
+    index = context.user_data["index"]
+    context.user_data["custom_amounts"][index] = amount
+
+    await send_custom_multiselect_users(update, context, True)
+    return EXPENSE_CUSTOM_SPLIT
+
+
+async def expense_multiplier(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    is_valid, result = parse_multiplier(update.message.text)
+    if not is_valid:
+        await update.message.reply_text(result)
+        return EXPENSE_MULTIPLIER
+    context.user_data["mult_val"] = result
+
+    await send_custom_multiselect_users(update, context, True)
+    return EXPENSE_CUSTOM_SPLIT
+
+
+async def send_custom_multiselect_users(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    is_new_msg=False,
+    validation_error=None,
+):
+    data = context.user_data
+    keyboard = []
+    for idx, (is_selected, username, amount) in enumerate(
+        zip(
+            data["participant_selections"],
+            data["all_participants"],
+            data["custom_amounts"],
+        )
+    ):
+        prefix = "✅" if is_selected else "❌"
+        toggle_button = InlineKeyboardButton(
+            f"{prefix} @{username}", callback_data=f"{idx}_toggle"
+        )
+        amount_button = (
+            InlineKeyboardButton(get_2dp_str(amount), callback_data=f"{idx}_amount")
+            if is_selected
+            else None
+        )
+        keyboard.append(
+            [toggle_button, amount_button] if is_selected else [toggle_button]
+        )
+
+    has_mult, mult_val = data["has_mult"], data["mult_val"]
+    mult_toggle_button = InlineKeyboardButton(
+        "Tap to remove multiplier:" if has_mult else "Tap to add multiplier",
+        callback_data="mult_toggle",
+    )
+    mult_amount_button = (
+        InlineKeyboardButton(mult_val, callback_data="mult_amount")
+        if has_mult
+        else None
+    )
+    keyboard.append(
+        [mult_toggle_button, mult_amount_button] if has_mult else [mult_toggle_button]
+    )
+    keyboard.append([InlineKeyboardButton("Done", callback_data="custom_done")])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    subtotal = sum(
+        amount
+        for idx, amount in enumerate(data["custom_amounts"])
+        if data["participant_selections"][idx]
+    )
+    text = (
+        f"👥 Select participants and specify the custom amount paid in {data['currency']}.\n"
+        f"Current total = {data['currency']} {get_2dp_str(subtotal)}{f' (*{mult_val} = {get_2dp_str(subtotal*Decimal(mult_val))})' if has_mult else ''}\n\n"
+        "Tap on the left to toggle selection, and on the right to specify the amount. "
+        "You can also specify the service charge multiplier at the bottom, eg 1.19.\n\n"
+        "NOTE: current total will override initial total if they don't tally.\n"
+        "Tap 'Done' when finished.\n"
+        f"{validation_error if validation_error else ''}"
+    )
+
+    if is_new_msg:
+        await update.message.reply_text(text=text, reply_markup=reply_markup)
+    else:
+        await update.callback_query.edit_message_text(
+            text=text, reply_markup=reply_markup
+        )
+
+
 #################### CONFIRM ADD NEW BILL / EDIT EXISTING BILL FLOW  ####################
 def get_bill_summary(data):
     if data["split_type"] == "equal_all":
-        split_status = f"equally among everyone ({data['currency']} {round(float(data['amount']/len(data['all_participants'])), 2)} per person))"
+        split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person))"
     elif data["split_type"] == "equal_some":
         selected_participants = data["selected_participants"]
-        split_status = f"equally among {len(selected_participants)} people (@{', @'.join(selected_participants)}, {data['currency']} {round(float(data['amount']/len(selected_participants)), 2)} per person)"
+        split_status = f"equally among {len(selected_participants)} people (@{', @'.join(selected_participants)}, {data['currency']} {get_2dp_str(data['amount']/len(selected_participants))} per person)"
     elif data["split_type"] == "custom":
-        split_status = "BOOM"
+        mult_val = data["mult_val"] if data["has_mult"] else 1
+        custom_split_str = "\n".join(
+            f"@{username} - {get_2dp_str(amount*Decimal(mult_val))}"
+            for idx, (username, amount) in enumerate(
+                zip(data["selected_participants"], data["custom_amounts"])
+            )
+            if data["participant_selections"][idx]
+        )
+        split_status = f"by custom amounts in {data['currency']}\n{custom_split_str}"
 
     summary = (
         f"**Bill for {data['expense_name']}**\n"
         f"Paid by: @{data['paid_by']}\n"
-        f"Currency & Amount: {data['currency']} {data['amount']}\n"
+        f"Currency & Amount: {data['currency']} {get_2dp_str(data['amount'])}\n"
         f"Split: {split_status}\n"
     )
     return summary
@@ -390,7 +650,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return EXPENSE_NAME
     elif action == "edit_amount":
         await query.edit_message_text(
-            "Please send the new amount in raw numeric form, or with a currency code in front to override current setting."
+            "Please send the new amount in raw numeric form.\n(add currency code in front to override current currency)"
         )
         return EXPENSE_AMOUNT
     elif action == "edit_payer":
@@ -434,7 +694,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         entry = {
             "group_id": query.message.chat.id,
             "title": data["expense_name"],
-            "amount": float(data["amount"]),  # Decimal is not JSON serializable
+            "amount": str(data["amount"]),  # Decimal is not JSON serializable
             "paid_by": data["paid_by"],
             "currency": data["currency"],
             "is_equal_split": data["is_equal_split"],
@@ -464,7 +724,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     if data["split_type"] == "equal_all"
                     else data["selected_participants"]
                 )
-                amount_per_pax = float(data["amount"] / len(participants))
+                amount_per_pax = str(data["amount"] / len(participants))
                 supabase.table("user_expenses").insert(
                     [
                         {
@@ -494,6 +754,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 #################### VIEW BILLS FLOW  ####################
+@group_only
 async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     group_id = update.message.chat.id
     expenses = (
@@ -527,7 +788,7 @@ async def send_all_expenses(
             ]
         )
     reply_markup = InlineKeyboardMarkup(keyboard)
-    text = f"All logged expenses so far\n(title | payer | amount):\n\n"
+    text = f"All logged expenses so far:\n<title | payer | amount>\n\n"
     if is_new_msg:
         await update.message.reply_text(text, reply_markup=reply_markup)
     else:
@@ -571,7 +832,7 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         "id"
     ]  # Signals an edit flow in expense_confirm
     context.user_data["expense_name"] = expense["title"]
-    context.user_data["amount"] = expense["amount"]
+    context.user_data["amount"] = Decimal(expense["amount"])
     context.user_data["paid_by"] = expense["paid_by"]
     context.user_data["currency"] = expense["currency"]
     context.user_data["is_equal_split"] = expense["is_equal_split"]
@@ -658,6 +919,8 @@ def main() -> None:
             CommandHandler("register", register_command),
             CommandHandler("add", add_command),
             CommandHandler("view", view_all_command),
+            CommandHandler("set_exp_currency", set_expense_currency_command),
+            CommandHandler("set_final_currency", set_settleup_currency_command),
         ],
         states={
             REGISTER_USERS: [
@@ -674,11 +937,24 @@ def main() -> None:
             ],
             EXPENSE_SPLIT_TYPE: [CallbackQueryHandler(expense_split_type)],
             EXPENSE_PARTICIPANTS: [CallbackQueryHandler(expense_participants)],
+            EXPENSE_CUSTOM_SPLIT: [CallbackQueryHandler(expense_custom_split)],
+            EXPENSE_CUSTOM_AMOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, expense_custom_amount)
+            ],
+            EXPENSE_MULTIPLIER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, expense_multiplier)
+            ],
             EXPENSE_SPLIT_TYPE: [CallbackQueryHandler(expense_split_type)],
             EXPENSE_CONFIRM: [CallbackQueryHandler(expense_confirm)],
             VIEW_EXPENSE: [CallbackQueryHandler(view_expense)],
             EDIT_OR_GO_BACK: [CallbackQueryHandler(edit_or_go_back)],
             DELETE_EXPENSE: [CallbackQueryHandler(delete_expense)],
+            SET_EXPENSE_CURRENCY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_expense_currency)
+            ],
+            SET_SETTLEUP_CURRENCY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, set_settleup_currency)
+            ],
         },
         fallbacks=[
             CommandHandler("start", start_command),
