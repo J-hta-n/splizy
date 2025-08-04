@@ -3,7 +3,8 @@ from decimal import Decimal
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from utils import get_2dp_str
+from src.bot.convo_utils.formatters import get_2dp_str
+
 
 
 def get_bill_summary(data):

@@ -1,6 +1,5 @@
-from dataclasses import dataclass
 from decimal import Decimal
-from typing import Generic, Optional, TypedDict, TypeVar
+from typing import Optional, TypeVar
 
 from src.bot.convo_utils.currencies import COMMON_CURRENCY_CODES
 
@@ -59,3 +58,4 @@ def parse_multiplier(input: str) -> ParsedResult[float]:
 
     except TypeError:
         return False, "Invalid input, please input a number between 1 and 2."
+
