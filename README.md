@@ -1,11 +1,21 @@
+# Splizy
+
+@splizy_bot is a telegram bot which helps members in group chats consolidate and split bills more conveniently without using any 3rd party apps.
+
 # Python environment
 
-- Switch to python 3.10.1, then create a virtual environment, activate it, then install depedencies
+- Switch to python 3.12, create a virtual environment, activate it, then install depedencies
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip3 install -r requirements.txt
+```
+
+- Alternatively, containerise with Docker:
+
+```bash
+docker build -t splizy-bot .
 ```
 
 # Pre-commit hook
@@ -15,13 +25,8 @@ pip3 install -r requirements.txt
 
 # Running Splizy
 
-- To serve webhook locally, first obtain WEBHOOK_URL by running `ngrok http <PORT>` and copying the public domain given by ngrok to your local env file, then start the server with `python3 main.py` on a separate terminal which sets the webhook upon bot instantiation
-- To serve webhook publicly, Koyeb was used to deploy the server on a public WEBHOOK_URL, which was then reconfigured in Koyeb secrets. Only after the first deployment would the webhook need to be manually set by running
-
-```bash
-  curl -X POST "https://api.telegram.org/bot<TELEBOT_TOKEN>/setWebhook" \
-   -d url=WEBHOOK_URL \
-   -d secret_token=SECRET_TOKEN
-```
-
-- Subsequently, as long as WEBHOOK_URL doesn't change, future deployments will set the correct webhook automatically
+- Obtain a telegram bot token via @BotFather and place it in local .env file, then run:
+  - if using venv:
+    `python3 main.py`
+  - if using Docker:
+    `docker run --rm --env-file .env splizy-bot`
