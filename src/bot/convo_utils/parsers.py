@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Generic, Optional, TypedDict, TypeVar
 
-from currencies import COMMON_CURRENCY_CODES
+from src.bot.convo_utils.currencies import COMMON_CURRENCY_CODES
 
 T = TypeVar("T")
 ParsedResult = tuple[bool, T | str]
