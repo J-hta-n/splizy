@@ -10,3 +10,6 @@ SECRET_TOKEN = os.environ.get("SECRET_TOKEN")
 PORT = int(os.environ.get("PORT", "8000"))
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+USE_MOCK_RECEIPT_PARSER = (
+    os.environ.get("USE_MOCK_RECEIPT_PARSER", "false").lower() == "true"
+)

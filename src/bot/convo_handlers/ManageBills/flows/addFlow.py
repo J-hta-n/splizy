@@ -43,7 +43,7 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     if not update.message.text:
         await update.message.reply_text("Name cannot be empty, please try again.")
         return ManageBillStates.EXPENSE_NAME
-    
+
     context.user_data["expense_name"] = update.message.text
 
     if "edit_field" in context.user_data:
@@ -51,7 +51,9 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ManageBillStates.EXPENSE_CONFIRM
 
     if "has_receipt" in context.user_data:
-        await update.message.reply_text("Please upload a picture of your receipt! (the clearer the better!)")
+        await update.message.reply_text(
+            "Please upload a picture of your receipt! (the clearer the better!)"
+        )
         return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
 
     expense_currency = (
