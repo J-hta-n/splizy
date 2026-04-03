@@ -21,8 +21,8 @@ from src.bot.convo_utils.renderers import (
     send_multiselect_users,
 )
 from src.bot.convo_utils.wrappers import group_only
-from src.lib.splizy_repo.database import supabase
 from src.lib.logger import get_logger
+from src.lib.splizy_repo.database import supabase
 
 logger = get_logger(__name__)
 
@@ -413,9 +413,11 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             "paid_by": data["paid_by"],
             "currency": data["currency"],
             "is_equal_split": data["is_equal_split"],
-            "multiplier": str(data["mult_val"])
-            if ("has_mult" in data and data["has_mult"])
-            else None,
+            "multiplier": (
+                str(data["mult_val"])
+                if ("has_mult" in data and data["has_mult"])
+                else None
+            ),
         }
         # NOTE: look into implementing transactions with supabase.table().rpc() in future if needed; for now
         # things are simple enough that failures are unlikely / manual rollbacks are manageable, so no need
@@ -462,9 +464,11 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                             "username": username,
                             "group_id": query.message.chat.id,
                             "expense_id": data["expense_id"],
-                            "amount": str(amount * Decimal(data["mult_val"]))
-                            if data["has_mult"]
-                            else str(amount),
+                            "amount": (
+                                str(amount * Decimal(data["mult_val"]))
+                                if data["has_mult"]
+                                else str(amount)
+                            ),
                         }
                         for idx, (username, amount) in enumerate(
                             zip(data["selected_participants"], data["custom_amounts"])
