@@ -12,7 +12,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await update.message.reply_text(
             f"Hello {username}! I help make splitting bills easier for you and your friends with the convenience of telegram groups, "
             "so all of you can enjoy the group trip without worrying about the hassle of bill splits!\n\n"
-            "To get started, add this bot into a telegram group and activate it with /start, then register all participants' telegram handles "
+            "To get started, add me into a telegram group and activate it with /start, then register all participants' telegram handles "
             "with /register, and you're all set!"
         )
         return ConversationHandler.END

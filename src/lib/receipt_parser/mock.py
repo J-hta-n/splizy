@@ -1,3 +1,36 @@
+from src.lib.receipt_parser.ReceiptParser import ReceiptParser
+from src.lib.receipt_parser.model import ParsedReceipt, ReceiptItem
+
+
+class MockReceiptParser(ReceiptParser):
+    """Mock implementation for testing purposes."""
+
+    def parse(self, image_bytes: bytes) -> ParsedReceipt:
+        """Return a mock receipt for testing."""
+        return ParsedReceipt(
+            items=[
+                ReceiptItem(name="Hong Kong Milk Tea (Cold)", quantity=4, unit_price=3.50, subtotal=14.00),
+                ReceiptItem(name="Honey Sea Coconut with Longan", quantity=1, unit_price=3.50),
+                ReceiptItem(name="BBQ Pork Rice", quantity=1, unit_price=3.50),
+                ReceiptItem(name="Char Siew Bao", quantity=1, unit_price=2.90),
+                ReceiptItem(name="Red Bean Paste Bao", quantity=1, unit_price=2.10),
+                ReceiptItem(name="Siew Mai", quantity=3, unit_price=2.90, subtotal=8.70),
+                ReceiptItem(name="Har Gow", quantity=3, unit_price=4.20, subtotal=12.60),
+            ],
+            subtotal=134.50,
+            service_charge=13.45,
+            gst=13.32,
+            total=161.27,
+            currency="SGD",
+        )
+
+
+def parse(image_bytes: bytes) -> ParsedReceipt:
+    """Mock implementation for testing purposes."""
+    return MockReceiptParser().parse(image_bytes)
+
+
+# Legacy mock data structure (for reference)
 mock_parsed_receipt = {
     "items": [
         {

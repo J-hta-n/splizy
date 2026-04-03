@@ -46,6 +46,7 @@ class ManageBills(BaseConversation):
     def setup_handlers(self):
         self.entry_points = [
             (CommandHandler("add", add_command)),
+            CommandHandler("add_receipt", add_receipt_command),
             CommandHandler("view", view_all_command),
         ]
         self.states = {
@@ -80,8 +81,14 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     await update.message.reply_text(
         "Let's add a new expense! Tell me what this is for? Eg 'Hotpot dinner'"
     )
-
     return ManageBills.EXPENSE_NAME
+
+@group_only
+async def add_receipt_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
+    await update.message.reply_text(
+        "Please upload a picture of your receipt"
+    )
 
 
 async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -107,6 +114,7 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         "How much is it? Enter just the numeric value, eg '50.10'\n\n"
         f"(Expense currency is in {expense_currency}, override by adding currency code in front, eg 'KRW 100 or MYR 100')"
     )
+    
     return ManageBills.EXPENSE_AMOUNT
 
 

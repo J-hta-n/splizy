@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class ReceiptItem(BaseModel):
     name: str
-    quantity: float = 1
+    quantity: int = 1
     unit_price: float
     subtotal: Optional[float] = None
 
