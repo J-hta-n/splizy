@@ -58,4 +58,3 @@ def parse_multiplier(input: str) -> ParsedResult[float]:
 
     except TypeError:
         return False, "Invalid input, please input a number between 1 and 2."
-

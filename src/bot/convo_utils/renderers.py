@@ -6,7 +6,6 @@ from telegram.ext import ContextTypes
 from src.bot.convo_utils.formatters import get_2dp_str
 
 
-
 def get_bill_summary(data):
     if data["split_type"] == "equal_all":
         split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person)"

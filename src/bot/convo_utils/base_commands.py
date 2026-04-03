@@ -27,11 +27,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         .execute()
         .data
     )
-    msg = ("Hello there! I help make splitting bills easier for you all with the convenience of telegram groups.\n\n" +
-     "To get started, register all group members' telegram handles with /register, and refer "
-      "to /help for the full list of available commands. Have a fun trip!" if not cur_users
-      else f"The following users are already registered: {', '.join([f'@{user['username']}' for user in cur_users])}! Welcome back to Splizy!"
-    ) 
+    msg = (
+        "Hello there! I help make splitting bills easier for you all with the convenience of telegram groups.\n\n"
+        + "To get started, register all group members' telegram handles with /register, and refer "
+        "to /help for the full list of available commands. Have a fun trip!"
+        if not cur_users
+        else f"The following users are already registered: {', '.join([f'@{user['username']}' for user in cur_users])}! Welcome back to Splizy!"
+    )
     await update.message.reply_text(msg)
     return ConversationHandler.END
 
