@@ -21,8 +21,8 @@ from src.bot.convo_utils.renderers import (
     send_multiselect_users,
 )
 from src.bot.convo_utils.wrappers import group_only
-from src.utils.database import supabase
-from src.utils.logger import get_logger
+from src.lib.splizy_repo.database import supabase
+from src.lib.logger import get_logger
 
 logger = get_logger(__name__)
 

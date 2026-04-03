@@ -9,7 +9,7 @@ from telegram.ext import (
 
 from src.bot.convo_handlers.Base import BaseConversation
 from src.bot.convo_utils.wrappers import group_only
-from src.utils.database import supabase
+from src.lib.splizy_repo.database import supabase
 
 
 class RegisterUsers(BaseConversation):

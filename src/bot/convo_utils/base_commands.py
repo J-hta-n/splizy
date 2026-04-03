@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src.utils.database import supabase
+from src.lib.splizy_repo.database import supabase
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
