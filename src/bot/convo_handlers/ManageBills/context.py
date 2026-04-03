@@ -1,2 +1,2 @@
-class ManageBillsContext():
+class ManageBillsContext:
     pass

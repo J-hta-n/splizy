@@ -1,13 +1,12 @@
 import re
 from io import BytesIO
-from typing import List, Dict, Optional
+from typing import List, Optional
 
 import easyocr
 from PIL import Image
 
-from src.lib.receipt_parser.ReceiptParser import ReceiptParser
 from src.lib.receipt_parser.model import ParsedReceipt, ReceiptItem
-
+from src.lib.receipt_parser.ReceiptParser import ReceiptParser
 
 # Module-level singleton reader (expensive to load, reuse across calls)
 _reader = None
@@ -31,10 +30,10 @@ class EasyOCRReceiptParser(ReceiptParser):
     def parse(self, image_bytes: bytes) -> ParsedReceipt:
         """
         Parse receipt image and extract structured data.
-        
+
         Args:
             image_bytes: Raw image bytes from Telegram
-            
+
         Returns:
             ParsedReceipt with extracted items, taxes, and total
         """
@@ -105,7 +104,7 @@ class EasyOCRReceiptParser(ReceiptParser):
     def _parse_item_line(self, line: str) -> Optional[ReceiptItem]:
         """
         Parse a single line to extract item name, quantity, and unit price.
-        
+
         Patterns:
         1. "Item Name x2 $5.00" or "Item Name x2 5.00"
         2. "Item Name 2 5.00" (last two numbers are quantity and price)
@@ -121,7 +120,10 @@ class EasyOCRReceiptParser(ReceiptParser):
             quantity = float(match.group(2))
             unit_price = float(match.group(3))
             return ReceiptItem(
-                name=name, quantity=quantity, unit_price=unit_price, subtotal=quantity * unit_price
+                name=name,
+                quantity=quantity,
+                unit_price=unit_price,
+                subtotal=quantity * unit_price,
             )
 
         # Pattern 2: Try to extract price and quantity from end of line
@@ -163,7 +165,9 @@ class EasyOCRReceiptParser(ReceiptParser):
 
     def _extract_subtotal(self, text: str) -> Optional[float]:
         """Extract subtotal amount from receipt text."""
-        return self._extract_amount_for_keyword(text, ["subtotal", "sub total", "subtotal"])
+        return self._extract_amount_for_keyword(
+            text, ["subtotal", "sub total", "subtotal"]
+        )
 
     def _extract_total(self, text: str) -> Optional[float]:
         """Extract total amount from receipt text."""
@@ -179,7 +183,9 @@ class EasyOCRReceiptParser(ReceiptParser):
             text, ["service charge", "service", "service fee", "svc chrg", "svc"]
         )
 
-    def _extract_amount_for_keyword(self, text: str, keywords: List[str]) -> Optional[float]:
+    def _extract_amount_for_keyword(
+        self, text: str, keywords: List[str]
+    ) -> Optional[float]:
         """
         Extract amount value associated with given keywords.
         Looks for patterns like "KEYWORD $12.50" or "KEYWORD 12.50"
@@ -203,16 +209,16 @@ class EasyOCRReceiptParser(ReceiptParser):
 def parse(image_bytes: bytes) -> ParsedReceipt:
     """
     Parse a receipt image and extract structured data.
-    
+
     Args:
         image_bytes: Raw image bytes from Telegram or any source
-        
+
     Returns:
         ParsedReceipt with extracted items, taxes, and total
-        
+
     Example:
         from src.lib.receipt_parser.easy_ocr_receipt_parser import parse
-        
+
         # In your telegram handler
         image_bytes = await photo_file.download_as_bytearray()
         receipt = parse(bytes(image_bytes))
