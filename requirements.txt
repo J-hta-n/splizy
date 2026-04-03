@@ -1,9 +1,12 @@
 python-telegram-bot[webhooks]==22.0
 supabase==2.15.1
 python-dotenv==1.1.0
+
 easyocr==1.7.1
-pillow==10.1.0
-opencv-python==4.8.1.78
-numpy==1.24.3
+
+numpy>=1.26,<2.0
+opencv-python>=4.9
+pillow>=10.0
+
 pydantic==2.5.0
 autoflake==2.3.1

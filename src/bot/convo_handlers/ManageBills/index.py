@@ -15,6 +15,7 @@ from src.bot.convo_handlers.ManageBills.flows.addFlow import (
 )
 from src.bot.convo_handlers.ManageBills.flows.deleteFlow import delete_expense
 from src.bot.convo_handlers.ManageBills.flows.editFlow import edit_or_go_back
+from src.bot.convo_handlers.ManageBills.flows.receiptFlow import expense_receipt_upload
 from src.bot.convo_handlers.ManageBills.flows.unevenSplitFlow import (
     expense_custom_split,
 )
@@ -38,6 +39,9 @@ class ManageBills(BaseConversation):
         self.states = {
             States.EXPENSE_NAME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_name)
+            ],
+            States.EXPENSE_RECEIPT_UPLOAD: [
+                MessageHandler(filters.PHOTO, expense_receipt_upload)
             ],
             States.EXPENSE_AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_amount)

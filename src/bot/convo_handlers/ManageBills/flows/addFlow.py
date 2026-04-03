@@ -32,20 +32,27 @@ async def add_receipt_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     context.user_data.clear()
-    context.user_
-    await update.message.reply_text("Please upload a picture of your receipt")
-    return
+    context.user_data["has_receipt"] = True
+    await update.message.reply_text(
+        "Let's add a new receipt expense! Tell me what this is for? Eg 'Hotpot dinner'"
+    )
+    return ManageBillStates.EXPENSE_NAME
 
 
 async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not update.message.text:
         await update.message.reply_text("Name cannot be empty, please try again.")
         return ManageBillStates.EXPENSE_NAME
+    
     context.user_data["expense_name"] = update.message.text
 
     if "edit_field" in context.user_data:
         await send_confirmation_form(update, context)
         return ManageBillStates.EXPENSE_CONFIRM
+
+    if "has_receipt" in context.user_data:
+        await update.message.reply_text("Please upload a picture of your receipt! (the clearer the better!)")
+        return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
 
     expense_currency = (
         supabase.table("groups")
