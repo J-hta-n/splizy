@@ -1,4 +1,19 @@
 import { ItemSummary } from "./types";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  Stack,
+  Typography,
+} from "@mui/material";
 
 type SharedItemsProps = {
   users: string[];
@@ -40,122 +55,168 @@ export function SharedItems({
 
   return (
     <>
-      <section className="space-y-4">
-        <div className="rounded-3xl border-2 border-emerald-300 bg-emerald-200 p-4 text-emerald-950">
-          <p className="font-semibold">Step 3/3: Please assign shared items</p>
-          <p className="mt-2 text-sm">
-            Tap "Split among" for each item to choose users sharing it.
-          </p>
-        </div>
+      <Stack spacing={2.5}>
+        <Card sx={{ backgroundColor: "#e8f5e9" }}>
+          <CardContent>
+            <Typography fontWeight={700}>
+              Step 3/3: Please assign shared items
+            </Typography>
+            <Typography variant="body2" mt={1}>
+              Tap "Split among" for each item to choose users sharing it.
+            </Typography>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-3xl border-2 border-slate-300 bg-white p-3 sm:p-4">
-          <div className="mb-2 grid grid-cols-[1fr_auto] gap-3 text-sm font-semibold text-slate-700">
-            <div className="rounded-2xl border-2 border-slate-300 bg-amber-100 px-3 py-2">
-              Item, qty, total cost
-            </div>
-            <div className="rounded-2xl border-2 border-slate-300 bg-amber-100 px-3 py-2">
-              Split among
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {itemSummaries.map(({ item, key, leftover, index }) => {
-              const selected = sharedSelections[key] ?? [];
-              return (
-                <div
-                  key={key}
-                  className="grid grid-cols-[1fr_auto] items-center gap-3"
-                >
-                  <div className="rounded-2xl border-2 border-slate-300 bg-amber-100 px-3 py-3 text-slate-900">
-                    <div className="font-semibold">
-                      {item.name || "Unnamed item"}
-                    </div>
-                    <div className="text-sm text-slate-700">
-                      qty left: {leftover}, total {currency}{" "}
-                      {formatMoney(item.subtotal ?? 0)}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onOpenSplitModal(index)}
-                    className="rounded-2xl border-2 border-slate-300 bg-amber-100 px-3 py-3 text-left text-sm font-semibold text-slate-800"
-                  >
-                    {selected.length > 0 ? selected.join(", ") : "Select users"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-2xl border-2 border-slate-300 bg-white px-4 py-3 font-semibold text-slate-800"
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving || users.length === 0}
-            className="rounded-2xl border-2 border-emerald-700 bg-emerald-200 px-5 py-3 font-semibold text-emerald-950 disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save step 3"}
-          </button>
-        </div>
-      </section>
-
-      {currentModalItem ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 sm:items-center">
-          <div className="w-full max-w-md rounded-3xl border-2 border-slate-300 bg-white p-4 shadow-xl">
-            <h3 className="text-lg font-bold">
-              Select users for {currentModalItem.item.name || "item"}
-            </h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Leftover qty: {currentModalItem.leftover}
-            </p>
-
-            <div className="mt-3 space-y-2">
-              {users.map((user) => {
-                const checked = modalSelection.includes(user);
+        <Card variant="outlined">
+          <CardContent>
+            <Stack spacing={1.25}>
+              {itemSummaries.map(({ item, key, leftover, index }) => {
+                const selected = sharedSelections[key] ?? [];
                 return (
-                  <label
-                    key={user}
-                    className="flex cursor-pointer items-center justify-between rounded-2xl border-2 border-slate-300 bg-slate-50 px-3 py-2"
+                  <Box
+                    key={key}
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "minmax(0, 1fr) 11rem",
+                        sm: "minmax(0, 1fr) 14rem",
+                      },
+                      alignItems: "stretch",
+                      gap: 1.25,
+                    }}
                   >
-                    <span className="font-medium text-slate-800">{user}</span>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => onToggleModalUser(user)}
-                      className="h-5 w-5"
-                    />
-                  </label>
+                    <Box
+                      sx={{
+                        border: "1px solid #f0c48a",
+                        backgroundColor: "#fff3e0",
+                        borderRadius: 2,
+                        px: 1.5,
+                        py: 1.25,
+                      }}
+                    >
+                      <Typography fontWeight={700}>
+                        {item.name || "Unnamed item"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        qty left: {leftover}, total {currency}{" "}
+                        {formatMoney(item.subtotal ?? 0)}
+                      </Typography>
+                    </Box>
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={() => onOpenSplitModal(index)}
+                      sx={{
+                        width: "100%",
+                        minHeight: 88,
+                        textAlign: "left",
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        backgroundColor: "#fff",
+                        px: 1,
+                        py: 0.75,
+                        cursor: "pointer",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.75,
+                        "&:hover": {
+                          borderColor: "primary.main",
+                          backgroundColor: "#f8fbff",
+                        },
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        Split among
+                      </Typography>
+                      {selected.length > 0 ? (
+                        <Box
+                          sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
+                        >
+                          {selected.map((user) => (
+                            <Chip
+                              key={user}
+                              label={user}
+                              size="small"
+                              sx={{
+                                maxWidth: "100%",
+                                "& .MuiChip-label": {
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                },
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Select users
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
                 );
               })}
-            </div>
+            </Stack>
+          </CardContent>
+        </Card>
 
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={onCloseSplitModal}
-                className="flex-1 rounded-2xl border-2 border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onConfirmSplitSelection}
-                className="flex-1 rounded-2xl border-2 border-emerald-700 bg-emerald-200 px-4 py-2 font-semibold text-emerald-950"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          justifyContent="space-between"
+        >
+          <Button variant="outlined" onClick={onBack}>
+            Back
+          </Button>
+          <Button
+            variant="contained"
+            onClick={onSave}
+            disabled={saving || users.length === 0}
+          >
+            {saving ? "Saving..." : "Save step 3"}
+          </Button>
+        </Stack>
+      </Stack>
+
+      <Dialog
+        open={Boolean(currentModalItem)}
+        onClose={onCloseSplitModal}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          Select users for {currentModalItem?.item.name || "item"}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={1}>
+            Leftover qty: {currentModalItem?.leftover ?? 0}
+          </Typography>
+          <Stack>
+            {users.map((user) => {
+              const checked = modalSelection.includes(user);
+              return (
+                <FormControlLabel
+                  key={user}
+                  control={
+                    <Checkbox
+                      checked={checked}
+                      onChange={() => onToggleModalUser(user)}
+                    />
+                  }
+                  label={user}
+                />
+              );
+            })}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onCloseSplitModal}>Cancel</Button>
+          <Button variant="contained" onClick={onConfirmSplitSelection}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

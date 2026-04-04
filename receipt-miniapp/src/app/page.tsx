@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Step,
+  StepLabel,
+  Stepper,
+  Typography,
+} from "@mui/material";
 import { ConfirmItems } from "./views/ConfirmItems";
 import { IndividualItems } from "./views/IndividualItems";
 import { SharedItems } from "./views/SharedItems";
@@ -229,9 +238,10 @@ export default function Home() {
     }));
   };
 
-  const removeStep1Item = (index: number) => {
+  const removeStep1Items = (indices: number[]) => {
+    const toDelete = new Set(indices);
     setReceipt((current) => {
-      const items = current.items.filter((_, idx) => idx !== index);
+      const items = current.items.filter((_, idx) => !toDelete.has(idx));
       const subtotal = items.reduce(
         (sum, item) => sum + (item.subtotal ?? 0),
         0,
@@ -350,20 +360,31 @@ export default function Home() {
     lastIndiv.find((entry) => entry.user === selectedUserStep2) ?? null;
 
   const stepLabels = [
-    { step: 1, title: "Confirm receipt" },
-    { step: 2, title: "Assign non-shared" },
-    { step: 3, title: "Assign shared" },
+    { step: 1, title: "Confirm" },
+    { step: 2, title: "Individual" },
+    { step: 3, title: "Shared" },
   ];
 
   return (
     <main className="min-h-screen bg-[#eceff3] px-3 py-5 text-slate-900 sm:px-5">
       <div className="mx-auto w-full max-w-2xl space-y-4">
-        <div className="rounded-3xl border-2 border-slate-400 bg-white p-4">
-          <h1 className="text-3xl font-bold">Receipt miniapp</h1>
-          <p className="mt-1 text-slate-700">
-            Simple 3-step flow for receipt split.
-          </p>
-        </div>
+        <Card
+          elevation={2}
+          sx={{
+            borderRadius: 3,
+            background: "linear-gradient(135deg, #ffffff 0%, #f7f8ff 100%)",
+          }}
+        >
+          <CardContent sx={{ p: 2.5 }}>
+            <Typography variant="h5" fontWeight={800}>
+              Receipt Miniapp
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
+              Confirm receipt items, assign individual portions, then split
+              shared leftovers.
+            </Typography>
+          </CardContent>
+        </Card>
 
         {!groupId ? (
           <div className="rounded-3xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900">
@@ -375,22 +396,29 @@ export default function Home() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {stepLabels.map((entry) => (
-                <button
-                  key={entry.step}
-                  type="button"
-                  onClick={() => setStep(entry.step as 1 | 2 | 3)}
-                  className={`rounded-2xl border-2 px-4 py-2 text-sm font-semibold transition ${
-                    step === entry.step
-                      ? "border-emerald-700 bg-emerald-200 text-emerald-950"
-                      : "border-slate-300 bg-white text-slate-700"
-                  }`}
-                >
-                  {entry.step}. {entry.title}
-                </button>
-              ))}
-            </div>
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent sx={{ px: { xs: 1.5, sm: 3 }, py: 2 }}>
+                <Stepper activeStep={step - 1} alternativeLabel>
+                  {stepLabels.map((entry) => (
+                    <Step key={entry.step} completed={step > entry.step}>
+                      <StepLabel
+                        onClick={() => setStep(entry.step as 1 | 2 | 3)}
+                        sx={{ cursor: "pointer" }}
+                      >
+                        <Box>
+                          <Typography fontWeight={700}>
+                            Step {entry.step}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {entry.title}
+                          </Typography>
+                        </Box>
+                      </StepLabel>
+                    </Step>
+                  ))}
+                </Stepper>
+              </CardContent>
+            </Card>
             {error ? (
               <div className="rounded-3xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900">
                 {error}
@@ -409,7 +437,7 @@ export default function Home() {
                 onUpdateItem={updateStep1Item}
                 onUpdateMeta={updateStep1Meta}
                 onAddItem={addStep1Item}
-                onRemoveItem={removeStep1Item}
+                onRemoveItems={removeStep1Items}
                 onSave={() => saveStep(1)}
               />
             ) : null}
