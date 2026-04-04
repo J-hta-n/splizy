@@ -13,15 +13,16 @@ import {
 import { ConfirmItems } from "./views/ConfirmItems";
 import { IndividualItems } from "./views/IndividualItems";
 import { SharedItems } from "./views/SharedItems";
+import { ItemSummary } from "./views/types";
 import {
   IndividualAssignment,
-  ItemSummary,
-  LastReceipt,
-  ReceiptRow,
+  Receipt,
+  ReceiptBillSplit,
   SharedAssignment,
-} from "./views/types";
+} from "./api/receipts/schema";
+import { clamp, formatMoney, normalizeAssignments, unique } from "@/lib/utils";
 
-const blankReceipt: LastReceipt = {
+const blankReceipt: Receipt = {
   items: [{ name: "", quantity: 1, subtotal: 0 }],
   subtotal: 0,
   service_charge: 0,
@@ -30,34 +31,9 @@ const blankReceipt: LastReceipt = {
   currency: "USD",
 };
 
-const formatMoney = (value: number) => {
-  return Number.isFinite(value) ? value.toFixed(2) : "0.00";
-};
-
-const clamp = (value: number, min: number, max: number) => {
-  return Math.max(min, Math.min(max, value));
-};
-
-const unique = (values: string[]) => {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-};
-
-const normalizeAssignments = (
-  users: string[],
-  existing: IndividualAssignment[] | SharedAssignment[] | null | undefined,
-) => {
-  return users.map((user) => {
-    const found = existing?.find((entry) => entry.user === user);
-    return {
-      user,
-      quantities: { ...(found?.quantities ?? {}) },
-    };
-  });
-};
-
 export default function Home() {
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<LastReceipt>(blankReceipt);
+  const [receipt, setReceipt] = useState<Receipt>(blankReceipt);
   const [lastIndiv, setLastIndiv] = useState<IndividualAssignment[]>([]);
   const [lastShared, setLastShared] = useState<SharedAssignment[]>([]);
   const [users, setUsers] = useState<string[]>([]);
@@ -101,7 +77,7 @@ export default function Home() {
           throw new Error(body.error || "Failed to load receipt row");
         }
 
-        const data: ReceiptRow = await response.json();
+        const data: ReceiptBillSplit = await response.json();
         const nextReceipt = data.last_receipt ?? blankReceipt;
         setReceipt(nextReceipt);
 
@@ -152,11 +128,7 @@ export default function Home() {
     });
   }, [receipt.items, lastIndiv]);
 
-  const saveData = async (payload: {
-    last_receipt?: LastReceipt;
-    last_indiv?: IndividualAssignment[];
-    last_shared?: SharedAssignment[];
-  }) => {
+  const saveData = async (payload: ReceiptBillSplit) => {
     if (!groupId) {
       setError("Missing group_id query parameter");
       return null;
@@ -368,24 +340,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#eceff3] px-3 py-5 text-slate-900 sm:px-5">
       <div className="mx-auto w-full max-w-2xl space-y-4">
-        <Card
-          elevation={2}
-          sx={{
-            borderRadius: 3,
-            background: "linear-gradient(135deg, #ffffff 0%, #f7f8ff 100%)",
-          }}
-        >
-          <CardContent sx={{ p: 2.5 }}>
-            <Typography variant="h5" fontWeight={800}>
-              Receipt Miniapp
-            </Typography>
-            <Typography variant="body2" color="text.secondary" mt={0.5}>
-              Confirm receipt items, assign individual portions, then split
-              shared leftovers.
-            </Typography>
-          </CardContent>
-        </Card>
-
         {!groupId ? (
           <div className="rounded-3xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900">
             Missing group_id in URL.

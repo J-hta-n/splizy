@@ -7,7 +7,8 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { IndividualAssignment, ItemSummary } from "./types";
+import { ItemSummary } from "./types";
+import { IndividualAssignment } from "../api/receipts/schema";
 
 type IndividualItemsProps = {
   users: string[];

@@ -20,10 +20,10 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
-import { LastReceipt } from "./types";
+import { Receipt } from "../api/receipts/schema";
 
 type ConfirmItemsProps = {
-  receipt: LastReceipt;
+  receipt: Receipt;
   saving: boolean;
   formatMoney: (value: number) => string;
   onUpdateItem: (

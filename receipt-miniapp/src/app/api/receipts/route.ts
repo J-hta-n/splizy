@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import { payloadSchema } from "./schema";
+import { receiptBillSplitSchema } from "./schema";
 
 const isMockReceiptsApiEnabled = () => {
   const value = process.env.MOCK_RECEIPTS_API?.toLowerCase();
@@ -135,7 +135,7 @@ export const PATCH = async (req: NextRequest) => {
   }
 
   const body = await req.json();
-  const validation = payloadSchema.safeParse(body);
+  const validation = receiptBillSplitSchema.safeParse(body);
   if (!validation.success) {
     return NextResponse.json(
       { error: validation.error.message },
