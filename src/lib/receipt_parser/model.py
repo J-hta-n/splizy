@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -6,7 +6,6 @@ from pydantic import BaseModel
 class ReceiptItem(BaseModel):
     name: str
     quantity: int = 1
-    unit_price: float
     subtotal: Optional[float] = None
 
 
@@ -17,3 +16,9 @@ class ParsedReceipt(BaseModel):
     gst: Optional[float] = None
     total: Optional[float] = None
     currency: str = "SGD"
+
+
+class MiniappPayload(BaseModel):
+    users: List[str]
+    receipt: ParsedReceipt
+    step: Literal["indiv", "shared"]
