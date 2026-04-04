@@ -4,6 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
+from src.bot.convo_utils.miniapp import open_miniapp
 from src.bot.convo_utils.parsers import parse_amount, parse_multiplier, parse_username
 from src.bot.convo_utils.renderers import (
     send_all_expenses,
@@ -13,6 +14,7 @@ from src.bot.convo_utils.renderers import (
 )
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
+from src.lib.receipt_parser.index import parse_receipt
 from src.lib.splizy_repo.database import supabase
 
 logger = get_logger(__name__)
@@ -31,12 +33,18 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def add_receipt_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
-    context.user_data.clear()
-    context.user_data["has_receipt"] = True
-    await update.message.reply_text(
-        "Let's add a new receipt expense! Tell me what this is for? Eg 'Hotpot dinner'"
-    )
-    return ManageBillStates.EXPENSE_NAME
+    # context.user_data.clear()
+    # context.user_data["has_receipt"] = True
+    # await update.message.reply_text(
+    #     "Let's add a new receipt expense! Tell me what this is for? Eg 'Hotpot dinner'"
+    # )
+    # return ManageBillStates.EXPENSE_NAME
+    context.user_data["receipt"] = parse_receipt(bytes())
+    # logger.info(context.user_data["receipt"].model_dump_json(indent=2))
+    logger.info("MINIAPP")
+    await open_miniapp(update, context)
+
+    # await send_receipt_items(update, context)
 
 
 async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

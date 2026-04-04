@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
+from src.bot.convo_utils.renderers import send_receipt_items
 from src.lib.logger import get_logger
 from src.lib.receipt_parser import ParsedReceipt, parse_receipt
 
@@ -42,20 +43,16 @@ async def expense_receipt_upload(
         )
         return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
 
-    context.user_data["parsed_receipt"] = receipt
+    context.user_data["receipt"] = receipt
     logger.info(
-        f"Photo receipt: ParsedReceipt! Info:\n {json.dumps(dict(context.user_data['parsed_receipt']), indent=2, default=str)}"
+        f"Photo receipt parsed successfully:\n {json.dumps(dict(context.user_data['receipt']), indent=2, default=str)}"
     )
 
-    if receipt.total is not None:
+    if receipt.total is None:
         await update.message.reply_text(
-            f"Receipt receipt: ParsedReceipt successfully! Total detected: {receipt.total}."
-            "\nWho paid for this expense? Please enter the Telegram handle, eg @user1"
+            "Receipt's total amount could not be detected. Please try again with a clearer photo"
         )
-        return ManageBillStates.EXPENSE_PAID_BY
+        return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
 
-    await update.message.reply_text(
-        "Receipt receipt: ParsedReceipt, but total could not be detected automatically. "
-        "Please enter the amount manually (e.g., 50.10)."
-    )
-    return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
+    await send_receipt_items(update, context)
+    return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
