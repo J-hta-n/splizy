@@ -196,36 +196,31 @@ export default function Home() {
 
     const selectedUser = selectedUserStep2;
 
-    setUserIndivSplits(() => {
-      const next = getUserIndivSplits(receipt, users);
-      const userIndex = next.findIndex(
-        (entry) => entry.username === selectedUser,
-      );
-      if (userIndex < 0) return next;
+    setReceipt((cur) => {
+      const nextItems = [...cur.items];
+      const editItem = nextItems[itemIndex];
 
-      const curQty = next[userIndex].indivSplit.get(itemIndex) ?? 0;
-      const othersTotal = next
-        .filter((entry) => entry.username !== selectedUser)
-        .reduce(
-          (sum, entry) => sum + (entry.indivSplit.get(itemIndex) ?? 0),
-          0,
-        );
-      const maxAllowed = Math.max(
-        0,
-        receipt.items[itemIndex].quantity - othersTotal,
-      );
+      // Create indivItemAssignment if not exists (i.e. initial state)
+      const indivItemAssignment = editItem.indiv.find(
+        (entry) => entry.username == selectedUser,
+      ) ?? { username: selectedUser, quantity: 0 };
+      const curQty = indivItemAssignment.quantity;
+      const othersQty = editItem.indiv
+        .filter((entry) => entry.username != selectedUser)
+        .reduce((sum, entry) => sum + entry.quantity, 0);
+      const maxAllowed = Math.max(0, editItem.quantity - othersQty);
       const nextQty = clamp(curQty + delta, 0, maxAllowed);
 
-      next[userIndex] = {
-        ...next[userIndex],
-        indivSplit: {
-          ...next[userIndex].indivSplit,
-          [itemIndex]: nextQty,
-        },
-      };
-
-      return next;
+      // If nextQty = 0, remove it from the indiv list, else assign the new qty
+      if (nextQty <= 0) {
+        editItem.indiv.filter((entry) => entry.username != selectedUser);
+      } else {
+        indivItemAssignment.quantity = nextQty;
+      }
+      return { ...cur, items: nextItems };
     });
+
+    setUserIndivSplits(getUserIndivSplits(receipt, users));
   };
 
   const openSplitModal = (itemIndex: number) => {
