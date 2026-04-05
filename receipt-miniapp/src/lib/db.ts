@@ -1,20 +1,15 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { env } from "@/lib/config";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseUrl = env.SUPABASE_URL;
+const supabaseKey = env.SUPABASE_KEY;
 
-let client: SupabaseClient | null = null;
-if (supabaseUrl && supabaseKey) {
-  client = createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false },
-  });
-} else if (
-  typeof process !== "undefined" &&
-  process.env.NODE_ENV !== "production"
-) {
-  console.warn(
-    "SUPABASE_URL or SUPABASE_KEY is not configured. API routes will fail until these environment variables are set.",
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    "Database is not configured. Set SUPABASE_URL and SUPABASE_KEY environment variables.",
   );
 }
 
-export const supabase = client;
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
+  auth: { persistSession: false },
+});

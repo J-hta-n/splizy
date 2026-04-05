@@ -26,6 +26,6 @@ class Receipt(BaseModel):
     total: Optional[float] = None
     currency: str = "SGD"
 
-class MiniappPayload(BaseModel):
+class MiniappLastReceipt(BaseModel):
     users: List[str]
     receipt: Receipt

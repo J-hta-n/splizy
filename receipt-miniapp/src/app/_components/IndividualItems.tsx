@@ -7,13 +7,12 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { ItemSummary } from "@src/lib/types";
-import { IndividualAssignment } from "@src/app/api/receipts/schema";
+import { IndivSplit, ItemSummary } from "@src/lib/types";
 
 type IndividualItemsProps = {
   users: string[];
   selectedUser: string | null;
-  selectedUserIndiv: IndividualAssignment | null;
+  selectedUserIndiv: IndivSplit | null;
   itemSummaries: ItemSummary[];
   currency: string;
   saving: boolean;

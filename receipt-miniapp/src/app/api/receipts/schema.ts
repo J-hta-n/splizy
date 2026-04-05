@@ -4,6 +4,8 @@ export const itemSchema = z.object({
   name: z.string(),
   quantity: z.number(),
   subtotal: z.number().nullable(),
+  indiv: z.array(z.object({ username: z.string(), quantity: z.number() })),
+  shared: z.array(z.string()),
 });
 
 export const receiptSchema = z.object({
@@ -15,24 +17,14 @@ export const receiptSchema = z.object({
   currency: z.string(),
 });
 
-export const indivAssignmentSchema = z.object({
-  user: z.string(),
-  quantities: z.record(z.string(), z.number()),
-});
-
-export const sharedAssignmentSchema = z.object({
-  user: z.string(),
-  quantities: z.record(z.string(), z.number()),
-});
-
-export const receiptBillSplitSchema = z.object({
-  last_receipt: receiptSchema.optional(),
-  last_indiv: z.array(indivAssignmentSchema).optional(),
-  last_shared: z.array(sharedAssignmentSchema).optional(),
+export const tempReceiptPayloadSchema = z.object({
+  last_confirmation: z.boolean(),
+  last_receipt: z.object({
+    users: z.array(z.string()),
+    receipt: receiptSchema,
+  }),
 });
 
 export type ReceiptItem = z.infer<typeof itemSchema>;
 export type Receipt = z.infer<typeof receiptSchema>;
-export type IndividualAssignment = z.infer<typeof indivAssignmentSchema>;
-export type SharedAssignment = z.infer<typeof sharedAssignmentSchema>;
-export type ReceiptBillSplit = z.infer<typeof receiptBillSplitSchema>;
+export type TempReceiptPayload = z.infer<typeof tempReceiptPayloadSchema>;

@@ -10,33 +10,33 @@ import {
   Stepper,
   Typography,
 } from "@mui/material";
-import { ConfirmItems } from "./views/ConfirmItems";
-import { IndividualItems } from "./views/IndividualItems";
-import { SharedItems } from "./views/SharedItems";
-import { ItemSummary } from "./views/types";
+import { ConfirmItems } from "./_components/ConfirmItems";
+import { IndividualItems } from "./_components/IndividualItems";
+import { SharedItems } from "./_components/SharedItems";
+import { Receipt, TempReceiptPayload } from "./api/receipts/schema";
 import {
-  IndividualAssignment,
-  Receipt,
-  ReceiptBillSplit,
-  SharedAssignment,
-} from "./api/receipts/schema";
-import { clamp, formatMoney, normalizeAssignments, unique } from "@/lib/utils";
+  clamp,
+  formatMoney,
+  getUserIndivSplits,
+  normalizeAssignments,
+  unique,
+} from "@/lib/utils";
+import { UserIndivSplit } from "@/lib/types";
 
 const blankReceipt: Receipt = {
-  items: [{ name: "", quantity: 1, subtotal: 0 }],
+  items: [{ name: "", quantity: 1, subtotal: 0, indiv: [], shared: [] }],
   subtotal: 0,
   service_charge: 0,
   gst: 0,
   total: 0,
-  currency: "USD",
+  currency: "SGD",
 };
 
 export default function Home() {
   const [groupId, setGroupId] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<Receipt>(blankReceipt);
-  const [lastIndiv, setLastIndiv] = useState<IndividualAssignment[]>([]);
-  const [lastShared, setLastShared] = useState<SharedAssignment[]>([]);
   const [users, setUsers] = useState<string[]>([]);
+  const [receipt, setReceipt] = useState<Receipt>(blankReceipt);
+  const [userIndivSplits, setUserIndivSplits] = useState<UserIndivSplit[]>([]);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedUserStep2, setSelectedUserStep2] = useState<string | null>(
     null,
@@ -77,27 +77,22 @@ export default function Home() {
           throw new Error(body.error || "Failed to load receipt row");
         }
 
-        const data: ReceiptBillSplit = await response.json();
-        const nextReceipt = data.last_receipt ?? blankReceipt;
-        setReceipt(nextReceipt);
+        const data: TempReceiptPayload = await response.json();
+        const receipt = data.last_receipt.receipt ?? blankReceipt;
+        setReceipt(receipt);
 
-        const serverUsers = unique([
-          ...(data.last_indiv?.map((entry) => entry.user) ?? []),
-          ...(data.last_shared?.map((entry) => entry.user) ?? []),
-        ]);
+        const users = data.last_receipt.users;
 
-        setUsers(serverUsers);
-        if (serverUsers.length > 0) {
-          setSelectedUserStep2(serverUsers[0]);
+        setUsers(users);
+        if (users.length > 0) {
+          setSelectedUserStep2(users[0]);
         }
 
-        const nextIndiv = normalizeAssignments(serverUsers, data.last_indiv);
-        const nextShared = normalizeAssignments(serverUsers, data.last_shared);
-        setLastIndiv(nextIndiv);
-        setLastShared(nextShared);
+        const userIndivSplits = getUserIndivSplits(receipt, users);
+        setUserIndivSplits(userIndivSplits);
 
         const selections: Record<string, string[]> = {};
-        nextReceipt.items.forEach((_, index) => {
+        receipt.items.forEach((_, index) => {
           const key = String(index);
           selections[key] = nextShared
             .filter((entry) => (entry.quantities[key] ?? 0) > 0)
@@ -117,7 +112,7 @@ export default function Home() {
   const itemSummaries: ItemSummary[] = useMemo(() => {
     return receipt.items.map((item, index) => {
       const key = String(index);
-      const indivTotal = lastIndiv.reduce(
+      const indivTotal = userIndivSplits.reduce(
         (sum, entry) => sum + (entry.quantities[key] ?? 0),
         0,
       );
@@ -126,9 +121,9 @@ export default function Home() {
         item.quantity > 0 ? (item.subtotal ?? 0) / item.quantity : 0;
       return { item, index, key, indivTotal, leftover, unitPrice };
     });
-  }, [receipt.items, lastIndiv]);
+  }, [receipt.items, userIndivSplits]);
 
-  const saveData = async (payload: ReceiptBillSplit) => {
+  const saveData = async (payload: TempReceiptPayload) => {
     if (!groupId) {
       setError("Missing group_id query parameter");
       return null;
@@ -232,7 +227,7 @@ export default function Home() {
 
     const selectedUser = selectedUserStep2;
 
-    setLastIndiv((current) => {
+    setUserIndivSplits((current) => {
       const next = normalizeAssignments(users, current);
       const targetIndex = next.findIndex(
         (entry) => entry.user === selectedUser,
@@ -308,28 +303,8 @@ export default function Home() {
     );
   };
 
-  const saveStep = async (stepNumber: 1 | 2 | 3) => {
-    if (stepNumber === 1) {
-      const ok = await saveData({ last_receipt: receipt });
-      if (ok) setStep(2);
-      return;
-    }
-
-    if (stepNumber === 2) {
-      const normalized = normalizeAssignments(users, lastIndiv);
-      setLastIndiv(normalized);
-      const ok = await saveData({ last_indiv: normalized });
-      if (ok) setStep(3);
-      return;
-    }
-
-    const computedShared = buildSharedAssignments();
-    setLastShared(computedShared);
-    await saveData({ last_shared: computedShared });
-  };
-
   const selectedUserIndiv =
-    lastIndiv.find((entry) => entry.user === selectedUserStep2) ?? null;
+    userIndivSplits.find((entry) => entry.user === selectedUserStep2) ?? null;
 
   const stepLabels = [
     { step: 1, title: "Confirm" },
