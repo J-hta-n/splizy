@@ -414,17 +414,26 @@ export default function Home() {
             Loading...
           </div>
         ) : submittedSuccessfully ? (
-          <Card variant="outlined" sx={{ borderRadius: 3 }}>
-            <CardContent>
-              <Typography fontWeight={700}>
-                Expense submitted successfully to Splizy!
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mt={1}>
-                You may close this miniapp and continue viewing expenses in the
-                chat interface.
-              </Typography>
-            </CardContent>
-          </Card>
+          <Box
+            sx={{
+              minHeight: "calc(100vh - 56px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Card variant="outlined" sx={{ borderRadius: 3, width: "100%" }}>
+              <CardContent sx={{ textAlign: "center", py: 4 }}>
+                <Typography fontWeight={700} fontSize={20} color="success.main">
+                  Expense submitted successfully to Splizy!
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mt={1}>
+                  You may close this miniapp browser and continue using Splizy
+                  in the chat interface.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
         ) : (
           <>
             {error ? (
@@ -521,26 +530,85 @@ export default function Home() {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Confirm final split</DialogTitle>
+        <DialogTitle>Confirm Final Details</DialogTitle>
         <DialogContent dividers sx={{ maxHeight: "70vh" }}>
           <Stack spacing={1.5}>
-            <Typography fontWeight={700}>
-              Please confirm the final split before submitting the expense:
-            </Typography>
             <Typography>
-              Total: {normalizedReceiptForSubmit.currency}{" "}
-              {formatMoney(normalizedReceiptForSubmit.total)} (including service
-              + gst), paid by {paidBy || "-"}
+              Please confirm the following details (inclusive of GST and service
+              charges) before submission.
             </Typography>
-            <Typography fontWeight={700}>
-              Spending by user (including service + gst):
-            </Typography>
-            {users.map((user) => (
-              <Typography key={user}>
-                {user} - {normalizedReceiptForSubmit.currency}{" "}
-                {formatMoney(spendByUser[user] ?? 0)}
-              </Typography>
-            ))}
+            <Box
+              sx={{
+                backgroundColor: "#fff3e0",
+                border: "1px solid #f0c48a",
+                borderRadius: 2,
+                px: 1.5,
+                py: 1.25,
+              }}
+            >
+              <Stack spacing={1.1}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Typography fontWeight={700} color="#ad5a00">
+                    Total
+                  </Typography>
+                  <Typography color="#ad5a00" textAlign="right">
+                    {normalizedReceiptForSubmit.currency}{" "}
+                    {formatMoney(normalizedReceiptForSubmit.total)}
+                  </Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography fontWeight={700} color="#ad5a00">
+                    Paid by
+                  </Typography>
+                  <Typography color="#ad5a00">{paidBy || "-"}</Typography>
+                </Box>
+
+                <Box
+                  sx={{
+                    borderTop: "1px solid #f0c48a",
+                    mt: 0.5,
+                    pt: 1,
+                  }}
+                >
+                  <Typography fontWeight={700} color="#ad5a00" mb={0.5}>
+                    User spendings
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {users.map((user) => (
+                      <Box
+                        key={user}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 1,
+                        }}
+                      >
+                        <Typography color="#ad5a00">{user}</Typography>
+                        <Typography color="#ad5a00">
+                          {normalizedReceiptForSubmit.currency}{" "}
+                          {formatMoney(spendByUser[user] ?? 0)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              </Stack>
+            </Box>
           </Stack>
         </DialogContent>
         <DialogActions>

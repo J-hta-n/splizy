@@ -206,7 +206,7 @@ export function SharedItems({
             onClick={onSave}
             disabled={saving || users.length === 0}
           >
-            {saving ? "Saving..." : "Save step 3"}
+            {saving ? "Submitting..." : "Submit expense"}
           </Button>
         </Stack>
       </Stack>
