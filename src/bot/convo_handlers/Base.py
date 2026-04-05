@@ -24,7 +24,6 @@ class BaseConversation(ABC):
     @abstractmethod
     def setup_handlers(self):
         """To be implemented by subclasses"""
-        pass
 
     def get_convo_handler(self):
         self.setup_handlers()

@@ -4,7 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.bot.convo_utils.formatters import get_2dp_str
-
+from src.lib.receipt_parser.model import Receipt
 
 
 def get_bill_summary(data):
@@ -168,3 +168,40 @@ async def send_all_expenses(
         await update.message.reply_text(text, reply_markup=reply_markup)
     else:
         await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+
+
+async def send_receipt_items(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, is_new_msg=True
+):
+    keyboard = [
+        [
+            InlineKeyboardButton("Item", callback_data="IGNORE"),
+            InlineKeyboardButton("Qty (subtotal)", callback_data="toggle_price"),
+        ]
+    ]
+    receipt: Receipt = context.user_data["receipt"]
+    for item in receipt.items:
+        # keyboard.append(
+        #     [
+        #         InlineKeyboardButton("-", callback_data="IGNORE"),
+        #         InlineKeyboardButton(
+        #             f"{item.name} ({item.quantity} * {item.unit_price} = {item.subtotal})",
+        #             callback_data="split_equal_all",
+        #         ),
+        #         InlineKeyboardButton("+", callback_data="IGNORE"),
+        #     ]
+        # )
+        keyboard.append(
+            [
+                InlineKeyboardButton(f"{item.name}", callback_data="dec_qty"),
+                InlineKeyboardButton(
+                    f"{item.quantity} (${item.subtotal})", callback_data="inc_qty"
+                ),
+            ]
+        )
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        f"Please modify any inaccuracies and confirm when done",
+        reply_markup=reply_markup,
+    )

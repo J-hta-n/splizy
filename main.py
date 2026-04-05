@@ -1,6 +1,6 @@
 from config import PORT, SECRET_TOKEN, WEBHOOK_URL
 from src.bot.telebot import initialise_telebot
-from src.utils.logger import get_logger
+from src.lib.logger import get_logger
 
 logger = get_logger(__name__)
 

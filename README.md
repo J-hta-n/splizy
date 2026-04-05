@@ -12,7 +12,7 @@
 │   │   │   └── ...
 │   │   └── convo_utils/        # Conversation-specific utilities
 │   │       └── ...
-│   ├── utils/                  # General utilities
+│   ├── lib/                    # External integrations, general utilities etc.
 │   │   └── ...
 │   └── telebot.py              # Main bot runner
 ├── config.py
@@ -23,9 +23,9 @@
 
 # Running Splizy
 
-## Python environment
+## Quick start
 
-- Switch to python 3.12, create a virtual environment, activate it, then install depedencies
+1. Using python 3.12, create a virtual environment, activate it, then install depedencies
 
 ```bash
 python3 -m venv venv
@@ -39,12 +39,19 @@ pip3 install -r requirements.txt
 docker build
 ```
 
-- Obtain a telegram bot token via @BotFather and place it in local .env file, then run:
+2. Create and configure your local .env from .env.example, then run:
 
-  - if using venv:
-    `python3 main.py`
-  - if using Docker:
-    `docker run --rm --env-file .env splizy-bot`
+- if using venv:
+  `python3 main.py`
+- if using Docker:
+  `docker run --rm --env-file .env splizy-bot`
+
+## Testing webhook locally
+
+- When running server locally for development, polling telebot API is viable, but we can also simulate webhook hosting temporarily via a reverse proxy, eg using ngrok:
+
+1. Run `ngrok http <PORT>` and copy the given public domain to `WEBHOOK_URL` in local .env
+2. In a separate terminal, re-run splizy to set the webhook upon bot instantiation
 
 ## Lint / formatting: Pre-commit hook
 
