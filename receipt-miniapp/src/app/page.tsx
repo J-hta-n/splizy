@@ -205,25 +205,24 @@ export default function Home() {
         ...nextItems[itemIndex],
         indiv: [...nextItems[itemIndex].indiv],
       };
+      nextItems[itemIndex] = editItem;
+
       const assignmentIndex = editItem.indiv.findIndex(
         (entry) => entry.username === selectedUser,
       );
+
       const curQty =
         assignmentIndex >= 0 ? editItem.indiv[assignmentIndex].quantity : 0;
-      const othersQty = editItem.indiv.reduce(
-        (sum, entry, index) =>
-          index === assignmentIndex ? sum : sum + entry.quantity,
-        0,
-      );
+      const othersQty = editItem.indiv
+        .filter((entry) => entry.username !== selectedUser)
+        .reduce((sum, entry) => sum + entry.quantity, 0);
       const maxAllowed = Math.max(0, editItem.quantity - othersQty);
       const nextQty = clamp(curQty + delta, 0, maxAllowed);
 
       if (nextQty <= 0) {
-        if (assignmentIndex >= 0) {
-          editItem.indiv = editItem.indiv.filter(
-            (_, index) => index !== assignmentIndex,
-          );
-        }
+        editItem.indiv = editItem.indiv.filter(
+          (entry) => entry.username !== selectedUser,
+        );
       } else if (assignmentIndex >= 0) {
         editItem.indiv[assignmentIndex] = {
           ...editItem.indiv[assignmentIndex],
@@ -233,7 +232,6 @@ export default function Home() {
         editItem.indiv.push({ username: selectedUser, quantity: nextQty });
       }
 
-      nextItems[itemIndex] = editItem;
       return { ...cur, items: nextItems };
     });
   };
