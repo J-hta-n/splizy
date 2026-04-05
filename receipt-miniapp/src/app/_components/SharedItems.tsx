@@ -159,7 +159,7 @@ export function SharedItems({
                               <Chip
                                 label="All users"
                                 size="small"
-                                color="success"
+                                color="info"
                                 variant="filled"
                               />
                             ) : (

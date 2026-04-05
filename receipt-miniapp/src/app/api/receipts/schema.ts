@@ -18,6 +18,8 @@ export const receiptSchema = z.object({
 });
 
 export const tempReceiptPayloadSchema = z.object({
+  title: z.string(),
+  paid_by: z.string(),
   last_confirmation: z.boolean(),
   last_receipt: z.object({
     users: z.array(z.string()),

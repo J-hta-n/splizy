@@ -3,11 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Box,
+  Button,
   Card,
   CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Step,
   StepLabel,
   Stepper,
+  Stack,
   Typography,
 } from "@mui/material";
 import { ConfirmItems } from "./_components/ConfirmItems";
@@ -16,7 +22,9 @@ import { SharedItems } from "./_components/SharedItems";
 import { Receipt, TempReceiptPayload } from "./api/receipts/schema";
 import {
   clamp,
+  formatMoney,
   getItemIndivsQty,
+  getSpendingByUserIncludingCharges,
   getUserIndivSplits,
   normaliseSharedItems,
 } from "@/lib/utils";
@@ -36,6 +44,8 @@ export default function Home() {
   const [users, setUsers] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<Receipt>(blankReceipt);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [expenseTitle, setExpenseTitle] = useState("");
+  const [paidBy, setPaidBy] = useState("");
   const [selectedUserStep2, setSelectedUserStep2] = useState<string | null>(
     null,
   );
@@ -43,6 +53,7 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [step1GuardError, setStep1GuardError] = useState<string | null>(null);
 
   const [splitModalItemIndex, setSplitModalItemIndex] = useState<number | null>(
     null,
@@ -51,6 +62,8 @@ export default function Home() {
   const [modalValidationError, setModalValidationError] = useState<
     string | null
   >(null);
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [submittedSuccessfully, setSubmittedSuccessfully] = useState(false);
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
@@ -76,12 +89,14 @@ export default function Home() {
         }
 
         const data: TempReceiptPayload = await response.json();
-        const receipt = data.last_receipt.receipt ?? blankReceipt;
-        setReceipt(receipt);
+        const loadedReceipt = data.last_receipt.receipt ?? blankReceipt;
+        setReceipt(loadedReceipt);
 
         const users = data.last_receipt.users;
 
         setUsers(users);
+        setExpenseTitle(data.title ?? "");
+        setPaidBy(data.paid_by ?? users[0] ?? "");
         if (users.length > 0) {
           setSelectedUserStep2(users[0]);
         }
@@ -94,6 +109,15 @@ export default function Home() {
 
     fetchReceipt();
   }, [groupId]);
+
+  useEffect(() => {
+    if (users.length === 0) {
+      setPaidBy("");
+      return;
+    }
+
+    setPaidBy((current) => (users.includes(current) ? current : users[0]));
+  }, [users]);
 
   const userIndivSplits: UserIndivSplit[] = useMemo(
     () => getUserIndivSplits(receipt, users),
@@ -109,20 +133,35 @@ export default function Home() {
     });
   }, [receipt.items]);
 
+  const normalizedReceiptForSubmit: Receipt = useMemo(
+    () => ({
+      ...receipt,
+      items: normaliseSharedItems(receipt, users),
+    }),
+    [receipt, users],
+  );
+
+  const spendByUser = useMemo(
+    () => getSpendingByUserIncludingCharges(normalizedReceiptForSubmit, users),
+    [normalizedReceiptForSubmit, users],
+  );
+
   const saveData = async () => {
     if (!groupId) {
       setError("Missing group_id query parameter");
       return null;
     }
 
-    const normalizedReceipt: Receipt = {
-      ...receipt,
-      items: normaliseSharedItems(receipt, users),
-    };
+    if (!paidBy) {
+      setError("Please select who paid before submitting.");
+      return null;
+    }
 
     const payload: TempReceiptPayload = {
+      title: expenseTitle.trim() || "Untitled expense",
+      paid_by: paidBy,
       last_receipt: {
-        receipt: normalizedReceipt,
+        receipt: normalizedReceiptForSubmit,
         users,
       },
       last_confirmation: true,
@@ -148,6 +187,7 @@ export default function Home() {
 
       await response.json();
       setMessage("Saved successfully.");
+      setSubmittedSuccessfully(true);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save data");
@@ -314,9 +354,47 @@ export default function Home() {
     );
   };
 
+  const confirmAndSubmit = async () => {
+    const success = await saveData();
+    if (!success) return;
+    setSubmitConfirmOpen(false);
+  };
+
   const selectedItemAssignments =
     userIndivSplits.find((entry) => entry.username === selectedUserStep2)
       ?.indivSplit ?? null;
+
+  const missingStep1Fields: string[] = [];
+  if (!expenseTitle.trim()) {
+    missingStep1Fields.push("expense title");
+  }
+  if (!paidBy.trim() || !users.includes(paidBy)) {
+    missingStep1Fields.push("paid by");
+  }
+  if (!receipt.currency.trim()) {
+    missingStep1Fields.push("currency");
+  }
+
+  const isStep1Valid = missingStep1Fields.length === 0;
+
+  const step1GuardErrorMessage = `Please fill in the following fields: ${missingStep1Fields.join(", ")}`;
+
+  const goToStep = (nextStep: 1 | 2 | 3) => {
+    if (nextStep > 1 && !isStep1Valid) {
+      setStep1GuardError(step1GuardErrorMessage);
+      setStep(1);
+      return;
+    }
+
+    setStep1GuardError(null);
+    setStep(nextStep);
+  };
+
+  useEffect(() => {
+    if (isStep1Valid) {
+      setStep1GuardError(null);
+    }
+  }, [isStep1Valid]);
 
   const stepLabels = [
     { step: 1, title: "Confirm" },
@@ -335,15 +413,32 @@ export default function Home() {
           <div className="rounded-3xl border-2 border-slate-300 bg-white p-4">
             Loading...
           </div>
+        ) : submittedSuccessfully ? (
+          <Card variant="outlined" sx={{ borderRadius: 3 }}>
+            <CardContent>
+              <Typography fontWeight={700}>
+                Expense submitted successfully to Splizy!
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mt={1}>
+                You may close this miniapp and continue viewing expenses in the
+                chat interface.
+              </Typography>
+            </CardContent>
+          </Card>
         ) : (
           <>
+            {error ? (
+              <div className="rounded-3xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900">
+                {error}
+              </div>
+            ) : null}
             <Card variant="outlined" sx={{ borderRadius: 3 }}>
               <CardContent sx={{ px: { xs: 1.5, sm: 3 }, py: 2 }}>
                 <Stepper activeStep={step - 1} alternativeLabel>
                   {stepLabels.map((entry) => (
                     <Step key={entry.step} completed={step > entry.step}>
                       <StepLabel
-                        onClick={() => setStep(entry.step as 1 | 2 | 3)}
+                        onClick={() => goToStep(entry.step as 1 | 2 | 3)}
                         sx={{ cursor: "pointer" }}
                       >
                         <Box>
@@ -360,11 +455,6 @@ export default function Home() {
                 </Stepper>
               </CardContent>
             </Card>
-            {error ? (
-              <div className="rounded-3xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900">
-                {error}
-              </div>
-            ) : null}
             {message ? (
               <div className="rounded-3xl border-2 border-emerald-300 bg-emerald-50 p-4 text-emerald-900">
                 {message}
@@ -373,11 +463,17 @@ export default function Home() {
             {step === 1 ? (
               <ConfirmItems
                 receipt={receipt}
+                users={users}
+                expenseTitle={expenseTitle}
+                paidBy={paidBy}
+                step1GuardError={step1GuardError}
+                onUpdateExpenseTitle={setExpenseTitle}
+                onUpdatePaidBy={setPaidBy}
                 onUpdateItem={updateStep1Item}
                 onUpdateMeta={updateStep1Meta}
                 onAddItem={addStep1Item}
                 onRemoveItems={removeStep1Items}
-                onNext={() => setStep(2)}
+                onNext={() => goToStep(2)}
               />
             ) : null}
             {step === 2 ? (
@@ -412,12 +508,48 @@ export default function Home() {
                 onConfirmSplitSelection={confirmSplitSelection}
                 isConfirmDisabled={modalSelection.length < 2}
                 onBack={() => setStep(2)}
-                onSave={saveData}
+                onSave={() => setSubmitConfirmOpen(true)}
               />
             ) : null}
           </>
         )}
       </div>
+
+      <Dialog
+        open={submitConfirmOpen}
+        onClose={() => setSubmitConfirmOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Confirm final split</DialogTitle>
+        <DialogContent dividers sx={{ maxHeight: "70vh" }}>
+          <Stack spacing={1.5}>
+            <Typography fontWeight={700}>
+              Please confirm the final split before submitting the expense:
+            </Typography>
+            <Typography>
+              Total: {normalizedReceiptForSubmit.currency}{" "}
+              {formatMoney(normalizedReceiptForSubmit.total)} (including service
+              + gst), paid by {paidBy || "-"}
+            </Typography>
+            <Typography fontWeight={700}>
+              Spending by user (including service + gst):
+            </Typography>
+            {users.map((user) => (
+              <Typography key={user}>
+                {user} - {normalizedReceiptForSubmit.currency}{" "}
+                {formatMoney(spendByUser[user] ?? 0)}
+              </Typography>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubmitConfirmOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={confirmAndSubmit}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </main>
   );
 }

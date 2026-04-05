@@ -1,6 +1,8 @@
 import { TempReceiptPayload } from "./schema";
 
 export const mockTempReceiptPayload: TempReceiptPayload = {
+  title: "Dinner",
+  paid_by: "Alice",
   last_confirmation: false,
   last_receipt: {
     users: ["Alice", "Bob", "Charlie", "David", "Eve"],

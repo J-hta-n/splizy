@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -23,8 +24,30 @@ import { useState } from "react";
 import { Receipt } from "@src/app/api/receipts/schema";
 import { formatMoney } from "@/lib/utils";
 
+const COMMON_CURRENCY_CODES: Record<string, string> = {
+  SGD: "Singapore Dollar",
+  MYR: "Malaysian Ringgit",
+  AUD: "Australian Dollar",
+  THB: "Thai Baht",
+  VND: "Vietnamese Dong",
+  IDR: "Indonesian Rupiah",
+  CNY: "Chinese Yuan",
+  KRW: "Korean Won",
+  JPY: "Japanese Yen",
+  INR: "Indian Rupee",
+  GBP: "British Pound",
+  USD: "US Dollar",
+  EUR: "Euro",
+};
+
 type ConfirmItemsProps = {
   receipt: Receipt;
+  users: string[];
+  expenseTitle: string;
+  paidBy: string;
+  step1GuardError: string | null;
+  onUpdateExpenseTitle: (value: string) => void;
+  onUpdatePaidBy: (value: string) => void;
   onUpdateItem: (
     index: number,
     field: "name" | "quantity" | "subtotal",
@@ -41,6 +64,12 @@ type ConfirmItemsProps = {
 
 export function ConfirmItems({
   receipt,
+  users,
+  expenseTitle,
+  paidBy,
+  step1GuardError,
+  onUpdateExpenseTitle,
+  onUpdatePaidBy,
   onUpdateItem,
   onUpdateMeta,
   onAddItem,
@@ -94,14 +123,69 @@ export function ConfirmItems({
     closeEditModal();
   };
 
+  const missingFields: string[] = [];
+  if (!expenseTitle.trim()) {
+    missingFields.push("expense title");
+  }
+  if (!paidBy.trim() || !users.includes(paidBy)) {
+    missingFields.push("paid by");
+  }
+  if (!receipt.currency || !(receipt.currency in COMMON_CURRENCY_CODES)) {
+    missingFields.push("currency");
+  }
+
+  const isStep1Valid = missingFields.length === 0;
+  const validationMessage = `please fill in the following fields: ${missingFields.join(", ")}`;
+
   return (
     <>
       <Stack spacing={2.5}>
         <Card sx={{ backgroundColor: "#e8f5e9" }}>
           <CardContent>
-            <Typography variant="h6" fontWeight={700}>
-              Step 1/3: Confirm receipt items
+            <Typography fontWeight={700}>
+              Step 1/3: Confirm receipt details
             </Typography>
+            <Typography variant="body2" mt={1}>
+              Please double check the payer and total cost for this bill
+            </Typography>
+          </CardContent>
+        </Card>
+
+        {step1GuardError ? (
+          <Typography color="error.main" variant="body2">
+            {step1GuardError}
+          </Typography>
+        ) : null}
+
+        <Card variant="outlined">
+          <CardContent>
+            <Stack spacing={1.5}>
+              <TextField
+                value={expenseTitle}
+                onChange={(event) => onUpdateExpenseTitle(event.target.value)}
+                label="Please enter a title for this expense"
+                placeholder="Dinner at XYZ"
+                size="small"
+                fullWidth
+              />
+              <TextField
+                select
+                value={paidBy}
+                onChange={(event) => onUpdatePaidBy(event.target.value)}
+                label="Paid by"
+                size="small"
+                fullWidth
+              >
+                <MenuItem value="" disabled>
+                  Select payer
+                </MenuItem>
+                {users.map((user) => (
+                  <MenuItem key={user} value={user}>
+                    {user}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
           </CardContent>
         </Card>
 
@@ -176,24 +260,22 @@ export function ConfirmItems({
               </TableBody>
             </Table>
 
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              mt={1}
-            >
-              Currency: {receipt.currency}
-            </Typography>
-
             <Stack spacing={1.5} mt={2}>
               <TextField
+                select
                 value={receipt.currency}
                 onChange={(event) =>
                   onUpdateMeta("currency", event.target.value)
                 }
                 label="Currency"
                 size="small"
-              />
+              >
+                {Object.entries(COMMON_CURRENCY_CODES).map(([code, name]) => (
+                  <MenuItem key={code} value={code}>
+                    {code} ({name})
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 value={receipt.service_charge}
                 onChange={(event) =>
@@ -218,11 +300,30 @@ export function ConfirmItems({
               />
             </Stack>
 
-            <Box mt={2}>
-              <Typography variant="body2" color="text.secondary">
+            <Box
+              mt={2}
+              sx={{
+                backgroundColor: "#fff3e0",
+                border: "1px solid #f0c48a",
+                borderRadius: 2,
+                px: 1.5,
+                py: 1.25,
+              }}
+            >
+              <Typography
+                variant="body2"
+                color="#ad5a00"
+                fontWeight={700}
+                fontSize={18}
+              >
                 Subtotal: {formatMoney(receipt.subtotal)} {receipt.currency}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="#ad5a00"
+                fontWeight={700}
+                fontSize={18}
+              >
                 Total: {formatMoney(receipt.total)} {receipt.currency}
               </Typography>
             </Box>
@@ -243,10 +344,19 @@ export function ConfirmItems({
               >
                 {deleteMode ? "Confirm deletion" : "Delete entry"}
               </Button>
-              <Button variant="contained" onClick={onNext}>
+              <Button
+                variant="contained"
+                onClick={onNext}
+                disabled={!isStep1Valid}
+              >
                 Proceed to step 2
               </Button>
             </Stack>
+            {!isStep1Valid ? (
+              <Typography color="error.main" variant="body2" mt={1.25}>
+                {validationMessage}
+              </Typography>
+            ) : null}
           </CardContent>
         </Card>
       </Stack>

@@ -12,7 +12,9 @@ export const getTempReceiptByGroupId = async (req: NextRequest) => {
 
   const { data, error } = await supabase
     .from("temp_receipts")
-    .select("id, created_at, group_id, last_receipt, last_confirmation")
+    .select(
+      "id, created_at, group_id, title, paid_by, last_receipt, last_confirmation",
+    )
     .eq("group_id", group_id)
     .single();
   if (error) {
