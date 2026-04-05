@@ -41,7 +41,6 @@ async def add_receipt_command(
     # return ManageBillStates.EXPENSE_NAME
     context.user_data["receipt"] = parse_receipt(bytes())
     # logger.info(context.user_data["receipt"].model_dump_json(indent=2))
-    logger.info("MINIAPP")
     await open_miniapp(update, context)
 
     # await send_receipt_items(update, context)

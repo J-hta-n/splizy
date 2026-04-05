@@ -20,7 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
-import { Receipt } from "../api/receipts/schema";
+import { Receipt } from "@src/app/api/receipts/schema";
 
 type ConfirmItemsProps = {
   receipt: Receipt;

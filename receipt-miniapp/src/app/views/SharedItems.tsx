@@ -1,4 +1,4 @@
-import { ItemSummary } from "./types";
+import { ItemSummary } from "@src/lib/types";
 import {
   Box,
   Button,
@@ -64,7 +64,8 @@ export function SharedItems({
               Step 3/3: Please assign shared items
             </Typography>
             <Typography variant="body2" mt={1}>
-              Tap "Split among" for each item to choose users sharing it.
+              Tap &quot;Split among&quot; for each item to choose users sharing
+              it.
             </Typography>
           </CardContent>
         </Card>

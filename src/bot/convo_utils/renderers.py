@@ -4,7 +4,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.bot.convo_utils.formatters import get_2dp_str
-from src.lib.receipt_parser.model import ParsedReceipt
+from src.lib.receipt_parser.model import Receipt
 
 
 def get_bill_summary(data):
@@ -179,7 +179,7 @@ async def send_receipt_items(
             InlineKeyboardButton("Qty (subtotal)", callback_data="toggle_price"),
         ]
     ]
-    receipt: ParsedReceipt = context.user_data["receipt"]
+    receipt: Receipt = context.user_data["receipt"]
     for item in receipt.items:
         # keyboard.append(
         #     [

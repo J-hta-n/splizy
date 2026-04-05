@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_utils.renderers import send_receipt_items
 from src.lib.logger import get_logger
-from src.lib.receipt_parser import ParsedReceipt, parse_receipt
+from src.lib.receipt_parser import Receipt, parse_receipt
 
 logger = get_logger(__name__)
 
@@ -35,7 +35,7 @@ async def expense_receipt_upload(
 
     logger.info("Photo received. Parsing...")
     try:
-        receipt: ParsedReceipt = parse_receipt(bytes(image_bytes))
+        receipt: Receipt = parse_receipt(bytes(image_bytes))
     except Exception as e:
         logger.error(f"Receipt parsing failed: {e}")
         await update.message.reply_text(

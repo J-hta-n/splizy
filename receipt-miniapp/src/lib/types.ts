@@ -1,4 +1,4 @@
-import { ReceiptItem } from "../api/receipts/schema";
+import { ReceiptItem } from "@src/app/api/receipts/schema";
 
 export type ItemSummary = {
   item: ReceiptItem;
