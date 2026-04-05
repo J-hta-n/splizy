@@ -14,7 +14,12 @@ import { ConfirmItems } from "./_components/ConfirmItems";
 import { IndividualItems } from "./_components/IndividualItems";
 import { SharedItems } from "./_components/SharedItems";
 import { Receipt, TempReceiptPayload } from "./api/receipts/schema";
-import { clamp, getUserIndivSplits } from "@/lib/utils";
+import {
+  clamp,
+  getItemIndivsQty,
+  getUserIndivSplits,
+  normaliseSharedItems,
+} from "@/lib/utils";
 import { ItemSummary, UserIndivSplit } from "@/lib/types";
 
 const blankReceipt: Receipt = {
@@ -39,11 +44,13 @@ export default function Home() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [sharedSelections, setSharedSelections] = useState<string[][]>([]);
   const [splitModalItemIndex, setSplitModalItemIndex] = useState<number | null>(
     null,
   );
   const [modalSelection, setModalSelection] = useState<string[]>([]);
+  const [modalValidationError, setModalValidationError] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
@@ -95,7 +102,7 @@ export default function Home() {
 
   const itemSummaries: ItemSummary[] = useMemo(() => {
     return receipt.items.map((item, index) => {
-      const indivsQty = item.indiv.reduce((sum, i) => sum + i.quantity, 0);
+      const indivsQty = getItemIndivsQty(item);
       const sharedQty = Math.max(0, item.quantity - indivsQty);
       const unitPrice = item.quantity > 0 ? item.subtotal / item.quantity : 0;
       return { item, index, indivsQty, sharedQty, unitPrice };
@@ -108,9 +115,14 @@ export default function Home() {
       return null;
     }
 
+    const normalizedReceipt: Receipt = {
+      ...receipt,
+      items: normaliseSharedItems(receipt, users),
+    };
+
     const payload: TempReceiptPayload = {
       last_receipt: {
-        receipt,
+        receipt: normalizedReceipt,
         users,
       },
       last_confirmation: true,
@@ -240,27 +252,65 @@ export default function Home() {
         editItem.indiv.push({ username: selectedUser, quantity: nextQty });
       }
 
+      // If indiv now covers all quantity, there is nothing left to share
+      const newIndivsQty = othersQty + (nextQty - curQty);
+      if (newIndivsQty >= editItem.quantity) {
+        editItem.shared = [];
+      }
+
       return { ...cur, items: nextItems };
     });
   };
 
   const openSplitModal = (itemIndex: number) => {
-    setModalSelection(sharedSelections[itemIndex] ?? []);
+    const currentShared = receipt.items[itemIndex]?.shared ?? [];
+    setModalSelection(currentShared.length >= 2 ? currentShared : users);
+    setModalValidationError(null);
     setSplitModalItemIndex(itemIndex);
+  };
+
+  const closeSplitModal = () => {
+    setSplitModalItemIndex(null);
+    setModalValidationError(null);
   };
 
   const confirmSplitSelection = () => {
     if (splitModalItemIndex === null) return;
-    const key = String(splitModalItemIndex);
-    setSharedSelections((current) => ({ ...current, [key]: modalSelection }));
+
+    if (modalSelection.length < 2) {
+      setModalValidationError(
+        "Please select at least 2 users to share this item.",
+      );
+      return;
+    }
+
+    const newShared = [...modalSelection];
+    setReceipt((cur) => {
+      if (!cur.items[splitModalItemIndex]) return cur;
+      const nextItems = [...cur.items];
+      nextItems[splitModalItemIndex] = {
+        ...nextItems[splitModalItemIndex],
+        shared: newShared,
+      };
+      return { ...cur, items: nextItems };
+    });
+    setModalValidationError(null);
     setSplitModalItemIndex(null);
   };
 
   const toggleModalUser = (user: string) => {
+    setModalValidationError(null);
     setModalSelection((current) =>
       current.includes(user)
         ? current.filter((name) => name !== user)
         : [...current, user],
+    );
+  };
+
+  const toggleAllModalUsers = () => {
+    setModalValidationError(null);
+    setModalSelection((current) =>
+      current.length === users.length ? [] : [...users],
     );
   };
 
@@ -349,13 +399,18 @@ export default function Home() {
                 itemSummaries={itemSummaries}
                 currency={receipt.currency}
                 saving={saving}
-                sharedSelections={sharedSelections}
                 splitModalItemIndex={splitModalItemIndex}
                 modalSelection={modalSelection}
+                modalValidationError={modalValidationError}
+                areAllUsersSelected={
+                  users.length > 0 && modalSelection.length === users.length
+                }
                 onOpenSplitModal={openSplitModal}
-                onCloseSplitModal={() => setSplitModalItemIndex(null)}
+                onCloseSplitModal={closeSplitModal}
                 onToggleModalUser={toggleModalUser}
+                onToggleAllModalUsers={toggleAllModalUsers}
                 onConfirmSplitSelection={confirmSplitSelection}
+                isConfirmDisabled={modalSelection.length < 2}
                 onBack={() => setStep(2)}
                 onSave={saveData}
               />

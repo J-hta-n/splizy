@@ -21,13 +21,16 @@ type SharedItemsProps = {
   itemSummaries: ItemSummary[];
   currency: string;
   saving: boolean;
-  sharedSelections: string[][];
   splitModalItemIndex: number | null;
   modalSelection: string[];
+  modalValidationError: string | null;
+  areAllUsersSelected: boolean;
   onOpenSplitModal: (itemIndex: number) => void;
   onCloseSplitModal: () => void;
   onToggleModalUser: (user: string) => void;
+  onToggleAllModalUsers: () => void;
   onConfirmSplitSelection: () => void;
+  isConfirmDisabled: boolean;
   onBack: () => void;
   onSave: () => void;
 };
@@ -37,13 +40,16 @@ export function SharedItems({
   itemSummaries,
   currency,
   saving,
-  sharedSelections,
   splitModalItemIndex,
   modalSelection,
+  modalValidationError,
+  areAllUsersSelected,
   onOpenSplitModal,
   onCloseSplitModal,
   onToggleModalUser,
+  onToggleAllModalUsers,
   onConfirmSplitSelection,
+  isConfirmDisabled,
   onBack,
   onSave,
 }: SharedItemsProps) {
@@ -83,7 +89,11 @@ export function SharedItems({
                 </Card>
               ) : (
                 shareableItems.map(({ item, sharedQty, index }) => {
-                  const selected = sharedSelections[index] ?? [];
+                  const selected = item.shared;
+                  const displaySelected =
+                    sharedQty > 0 && selected.length === 0 ? users : selected;
+                  const isAllUsersDefault =
+                    users.length > 0 && displaySelected.length === users.length;
                   return (
                     <Box
                       key={index}
@@ -141,24 +151,33 @@ export function SharedItems({
                         <Typography variant="caption" color="text.secondary">
                           Split among
                         </Typography>
-                        {selected.length > 0 ? (
+                        {displaySelected.length > 0 ? (
                           <Box
                             sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}
                           >
-                            {selected.map((user) => (
+                            {isAllUsersDefault ? (
                               <Chip
-                                key={user}
-                                label={user}
+                                label="All users"
                                 size="small"
-                                sx={{
-                                  maxWidth: "100%",
-                                  "& .MuiChip-label": {
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  },
-                                }}
+                                color="success"
+                                variant="filled"
                               />
-                            ))}
+                            ) : (
+                              displaySelected.map((user) => (
+                                <Chip
+                                  key={user}
+                                  label={user}
+                                  size="small"
+                                  sx={{
+                                    maxWidth: "100%",
+                                    "& .MuiChip-label": {
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                    },
+                                  }}
+                                />
+                              ))
+                            )}
                           </Box>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
@@ -206,6 +225,15 @@ export function SharedItems({
             Leftover qty: {currentModalItem?.sharedQty ?? 0}
           </Typography>
           <Stack>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={areAllUsersSelected}
+                  onChange={onToggleAllModalUsers}
+                />
+              }
+              label={areAllUsersSelected ? "Deselect all" : "Select all"}
+            />
             {users.map((user) => {
               const checked = modalSelection.includes(user);
               return (
@@ -222,10 +250,20 @@ export function SharedItems({
               );
             })}
           </Stack>
+          {isConfirmDisabled || modalValidationError ? (
+            <Typography color="error.main" variant="body2" mt={1}>
+              {modalValidationError ||
+                "Please select at least 2 users to share this item."}
+            </Typography>
+          ) : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={onCloseSplitModal}>Cancel</Button>
-          <Button variant="contained" onClick={onConfirmSplitSelection}>
+          <Button
+            variant="contained"
+            onClick={onConfirmSplitSelection}
+            disabled={isConfirmDisabled}
+          >
             Confirm
           </Button>
         </DialogActions>

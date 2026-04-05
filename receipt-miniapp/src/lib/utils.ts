@@ -1,4 +1,4 @@
-import { Receipt } from "@/app/api/receipts/schema";
+import { Receipt, ReceiptItem } from "@/app/api/receipts/schema";
 import { UserIndivSplit } from "./types";
 
 export const formatMoney = (value: number) => {
@@ -30,6 +30,30 @@ export const getUserIndivSplits = (
     return {
       username,
       indivSplit,
+    };
+  });
+};
+
+export const getItemIndivsQty = (item: ReceiptItem) =>
+  item.indiv.reduce((sum, entry) => sum + entry.quantity, 0);
+
+export const normaliseSharedItems = (receipt: Receipt, users: string[]) => {
+  return receipt.items.map((item) => {
+    const indivsQty = getItemIndivsQty(item);
+    const sharedQty = Math.max(0, item.quantity - indivsQty);
+    const validSharedUsers = item.shared.filter((user) => users.includes(user));
+    let normalizedShared: string[] = [];
+    if (sharedQty > 0) {
+      if (validSharedUsers.length === 0) {
+        normalizedShared = [...users];
+      } else if (validSharedUsers.length >= 2) {
+        normalizedShared = validSharedUsers;
+      }
+    }
+
+    return {
+      ...item,
+      shared: normalizedShared,
     };
   });
 };
