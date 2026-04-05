@@ -14,7 +14,7 @@ import { ConfirmItems } from "./_components/ConfirmItems";
 import { IndividualItems } from "./_components/IndividualItems";
 import { SharedItems } from "./_components/SharedItems";
 import { Receipt, TempReceiptPayload } from "./api/receipts/schema";
-import { clamp, formatMoney, getUserIndivSplits, unique } from "@/lib/utils";
+import { clamp, formatMoney, getUserIndivSplits } from "@/lib/utils";
 import { ItemSummary, UserIndivSplit } from "@/lib/types";
 
 const blankReceipt: Receipt = {
@@ -30,7 +30,6 @@ export default function Home() {
   const [groupId, setGroupId] = useState<string | null>(null);
   const [users, setUsers] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<Receipt>(blankReceipt);
-  const [userIndivSplits, setUserIndivSplits] = useState<UserIndivSplit[]>([]);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedUserStep2, setSelectedUserStep2] = useState<string | null>(
     null,
@@ -79,9 +78,6 @@ export default function Home() {
         if (users.length > 0) {
           setSelectedUserStep2(users[0]);
         }
-
-        const userIndivSplits = getUserIndivSplits(receipt, users);
-        setUserIndivSplits(userIndivSplits);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load data");
       } finally {
@@ -92,6 +88,11 @@ export default function Home() {
     fetchReceipt();
   }, [groupId]);
 
+  const userIndivSplits: UserIndivSplit[] = useMemo(
+    () => getUserIndivSplits(receipt, users),
+    [receipt, users],
+  );
+
   const itemSummaries: ItemSummary[] = useMemo(() => {
     return receipt.items.map((item, index) => {
       const indivsQty = item.indiv.reduce((sum, i) => sum + i.quantity, 0);
@@ -99,7 +100,7 @@ export default function Home() {
       const unitPrice = item.quantity > 0 ? item.subtotal / item.quantity : 0;
       return { item, index, indivsQty, sharedQty, unitPrice };
     });
-  }, [receipt.items, userIndivSplits]);
+  }, [receipt.items]);
 
   const saveData = async (payload: TempReceiptPayload) => {
     if (!groupId) {
@@ -197,30 +198,44 @@ export default function Home() {
     const selectedUser = selectedUserStep2;
 
     setReceipt((cur) => {
-      const nextItems = [...cur.items];
-      const editItem = nextItems[itemIndex];
+      if (!cur.items[itemIndex]) return cur;
 
-      // Create indivItemAssignment if not exists (i.e. initial state)
-      const indivItemAssignment = editItem.indiv.find(
-        (entry) => entry.username == selectedUser,
-      ) ?? { username: selectedUser, quantity: 0 };
-      const curQty = indivItemAssignment.quantity;
-      const othersQty = editItem.indiv
-        .filter((entry) => entry.username != selectedUser)
-        .reduce((sum, entry) => sum + entry.quantity, 0);
+      const nextItems = [...cur.items];
+      const editItem = {
+        ...nextItems[itemIndex],
+        indiv: [...nextItems[itemIndex].indiv],
+      };
+      const assignmentIndex = editItem.indiv.findIndex(
+        (entry) => entry.username === selectedUser,
+      );
+      const curQty =
+        assignmentIndex >= 0 ? editItem.indiv[assignmentIndex].quantity : 0;
+      const othersQty = editItem.indiv.reduce(
+        (sum, entry, index) =>
+          index === assignmentIndex ? sum : sum + entry.quantity,
+        0,
+      );
       const maxAllowed = Math.max(0, editItem.quantity - othersQty);
       const nextQty = clamp(curQty + delta, 0, maxAllowed);
 
-      // If nextQty = 0, remove it from the indiv list, else assign the new qty
       if (nextQty <= 0) {
-        editItem.indiv.filter((entry) => entry.username != selectedUser);
+        if (assignmentIndex >= 0) {
+          editItem.indiv = editItem.indiv.filter(
+            (_, index) => index !== assignmentIndex,
+          );
+        }
+      } else if (assignmentIndex >= 0) {
+        editItem.indiv[assignmentIndex] = {
+          ...editItem.indiv[assignmentIndex],
+          quantity: nextQty,
+        };
       } else {
-        indivItemAssignment.quantity = nextQty;
+        editItem.indiv.push({ username: selectedUser, quantity: nextQty });
       }
+
+      nextItems[itemIndex] = editItem;
       return { ...cur, items: nextItems };
     });
-
-    setUserIndivSplits(getUserIndivSplits(receipt, users));
   };
 
   const openSplitModal = (itemIndex: number) => {
