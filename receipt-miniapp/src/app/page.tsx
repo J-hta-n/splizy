@@ -307,7 +307,6 @@ export default function Home() {
             {step === 1 ? (
               <ConfirmItems
                 receipt={receipt}
-                saving={saving}
                 formatMoney={formatMoney}
                 onUpdateItem={updateStep1Item}
                 onUpdateMeta={updateStep1Meta}
@@ -323,7 +322,6 @@ export default function Home() {
                 selectedItemAssignments={selectedItemAssignments}
                 itemSummaries={itemSummaries}
                 currency={receipt.currency}
-                saving={saving}
                 formatMoney={formatMoney}
                 onSelectUser={setSelectedUserStep2}
                 onAdjustQuantity={updateIndivItemQtyByDelta}

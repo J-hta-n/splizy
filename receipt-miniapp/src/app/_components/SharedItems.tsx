@@ -20,7 +20,7 @@ type SharedItemsProps = {
   itemSummaries: ItemSummary[];
   currency: string;
   saving: boolean;
-  sharedSelections: Record<string, string[]>;
+  sharedSelections: string[][];
   splitModalItemIndex: number | null;
   modalSelection: string[];
   formatMoney: (value: number) => string;

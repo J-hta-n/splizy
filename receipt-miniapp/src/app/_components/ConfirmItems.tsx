@@ -24,7 +24,6 @@ import { Receipt } from "@src/app/api/receipts/schema";
 
 type ConfirmItemsProps = {
   receipt: Receipt;
-  saving: boolean;
   formatMoney: (value: number) => string;
   onUpdateItem: (
     index: number,
@@ -42,7 +41,6 @@ type ConfirmItemsProps = {
 
 export function ConfirmItems({
   receipt,
-  saving,
   formatMoney,
   onUpdateItem,
   onUpdateMeta,
@@ -75,11 +73,6 @@ export function ConfirmItems({
     }
     setPendingDelete([]);
     setDeleteMode(false);
-  };
-
-  const changeQtyBy = (index: number, currentQty: number, delta: number) => {
-    const nextQty = Math.max(0, currentQty + delta);
-    onUpdateItem(index, "quantity", String(nextQty));
   };
 
   const openEditModal = (index: number) => {
@@ -251,7 +244,7 @@ export function ConfirmItems({
               >
                 {deleteMode ? "Confirm deletion" : "Delete entry"}
               </Button>
-              <Button variant="contained" onClick={onNext} disabled={saving}>
+              <Button variant="contained" onClick={onNext}>
                 Proceed to step 2
               </Button>
             </Stack>

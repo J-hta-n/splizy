@@ -15,12 +15,11 @@ type IndividualItemsProps = {
   selectedItemAssignments: ItemAssignments | null;
   itemSummaries: ItemSummary[];
   currency: string;
-  saving: boolean;
   formatMoney: (value: number) => string;
   onSelectUser: (user: string) => void;
   onAdjustQuantity: (itemIndex: number, delta: number) => void;
   onBack: () => void;
-  onSave: () => void;
+  onNext: () => void;
 };
 
 const UserCards = ({
@@ -112,12 +111,11 @@ export function IndividualItems({
   selectedItemAssignments,
   itemSummaries,
   currency,
-  saving,
   formatMoney,
   onSelectUser,
   onAdjustQuantity,
   onBack,
-  onSave,
+  onNext,
 }: IndividualItemsProps) {
   return (
     <Stack spacing={2.5}>
@@ -190,12 +188,8 @@ export function IndividualItems({
         <Button variant="outlined" onClick={onBack}>
           Back
         </Button>
-        <Button
-          variant="contained"
-          onClick={onSave}
-          disabled={saving || users.length === 0}
-        >
-          {saving ? "Saving..." : "Save step 2"}
+        <Button variant="contained" onClick={onNext}>
+          Proceed to step 3
         </Button>
       </Stack>
     </Stack>
