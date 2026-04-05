@@ -3,6 +3,7 @@ import { env } from "@/lib/config";
 import { NextRequest, NextResponse } from "next/server";
 import { mockTempReceiptPayload } from "./mocks";
 import {
+  Payee,
   TempReceiptSubmitPayload,
   tempReceiptSubmitPayloadSchema,
 } from "./schema";
@@ -73,6 +74,10 @@ export const patchTempReceiptByGroupId = async (req: NextRequest) => {
     normalizedReceipt,
     body.last_receipt.users,
   );
+  const payees: Payee[] = body.last_receipt.users.map((user) => ({
+    user,
+    amount: Number(spendByUser[user] ?? 0),
+  }));
 
   const { data: latestTempRows, error: latestTempError } = await supabase
     .from("temp_receipts")
@@ -102,6 +107,8 @@ export const patchTempReceiptByGroupId = async (req: NextRequest) => {
     currency: normalizedReceipt.currency,
     is_equal_split: false,
     multiplier: null,
+    payees,
+    receipt: normalizedReceipt,
   };
 
   const { data: expenseData, error: expenseError } = await supabase
@@ -119,25 +126,6 @@ export const patchTempReceiptByGroupId = async (req: NextRequest) => {
 
   const expenseId = expenseData.id;
 
-  const userExpenses = body.last_receipt.users.map((username) => ({
-    username,
-    group_id: numericGroupId,
-    expense_id: expenseId,
-    amount: String(spendByUser[username] ?? 0),
-  }));
-
-  const { error: userExpensesError } = await supabase
-    .from("user_expenses")
-    .insert(userExpenses);
-
-  if (userExpensesError) {
-    await supabase.from("expenses").delete().eq("id", expenseId);
-    return NextResponse.json(
-      { error: userExpensesError.message },
-      { status: 500 },
-    );
-  }
-
   const { data, error } = await supabase
     .from("temp_receipts")
     .update({
@@ -153,6 +141,7 @@ export const patchTempReceiptByGroupId = async (req: NextRequest) => {
     .select()
     .single();
   if (error) {
+    await supabase.from("expenses").delete().eq("id", expenseId);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

@@ -36,6 +36,45 @@ def _to_miniapp_receipt(receipt: Receipt) -> dict:
     return parsed
 
 
+def _compute_spending_from_last_receipt(last_receipt: dict) -> dict:
+    users = last_receipt.get("users") or []
+    receipt = last_receipt.get("receipt") or {}
+    items = receipt.get("items") or []
+
+    spending = {user: 0.0 for user in users}
+
+    for item in items:
+        quantity = float(item.get("quantity") or 0)
+        subtotal = float(item.get("subtotal") or 0)
+        if quantity <= 0:
+            continue
+
+        unit_price = subtotal / quantity
+        indiv_entries = item.get("indiv") or []
+
+        for entry in indiv_entries:
+            username = entry.get("username")
+            qty = float(entry.get("quantity") or 0)
+            if username in spending:
+                spending[username] += unit_price * qty
+
+        indiv_qty = sum(float(entry.get("quantity") or 0) for entry in indiv_entries)
+        shared_qty = max(0.0, quantity - indiv_qty)
+        shared_users = [u for u in (item.get("shared") or []) if u in spending]
+        if shared_qty > 0 and len(shared_users) >= 2:
+            per_user = (unit_price * shared_qty) / len(shared_users)
+            for username in shared_users:
+                spending[username] += per_user
+
+    subtotal_value = float(receipt.get("subtotal") or 0)
+    total_value = float(receipt.get("total") or 0)
+    factor = (total_value / subtotal_value) if subtotal_value > 0 else 0
+    for username in spending:
+        spending[username] *= factor
+
+    return spending
+
+
 @group_only
 async def add_receipt_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -159,7 +198,7 @@ async def expense_receipt_done(
     group_id = query.message.chat.id
     temp_rows = (
         supabase.table("temp_receipts")
-        .select("id, expense_id")
+        .select("id, expense_id, last_receipt")
         .eq("group_id", group_id)
         .order("created_at", desc=True)
         .limit(1)
@@ -182,7 +221,7 @@ async def expense_receipt_done(
 
     expense_rows = (
         supabase.table("expenses")
-        .select("title, amount, paid_by, currency")
+        .select("title, amount, paid_by, currency, payees")
         .eq("id", expense_id)
         .limit(1)
         .execute()
@@ -195,14 +234,20 @@ async def expense_receipt_done(
         return ConversationHandler.END
 
     expense = expense_rows[0]
-    user_expenses = (
-        supabase.table("user_expenses")
-        .select("username, amount")
-        .eq("expense_id", expense_id)
-        .order("username")
-        .execute()
-        .data
-    )
+    payees = expense.get("payees") or []
+    user_spending_lines = [
+        f"{(entry.get('user') or entry.get('username') or '-')} - {expense.get('currency', '')} {entry.get('amount', '0')}"
+        for entry in payees
+        if (entry.get("user") or entry.get("username"))
+    ]
+
+    if not user_spending_lines:
+        last_receipt = temp_rows[0].get("last_receipt") or {}
+        computed = _compute_spending_from_last_receipt(last_receipt)
+        user_spending_lines = [
+            f"{username} - {expense.get('currency', '')} {amount:.2f}"
+            for username, amount in sorted(computed.items())
+        ]
 
     lines = [
         "Receipt saved successfully! Details:",
@@ -210,12 +255,7 @@ async def expense_receipt_done(
         f"Paid by: {expense.get('paid_by', '-')}",
         "User spending:",
     ]
-    lines.extend(
-        [
-            f"{entry.get('username', '-')} - {expense.get('currency', '')} {entry.get('amount', '0')}"
-            for entry in user_expenses
-        ]
-    )
+    lines.extend(user_spending_lines)
 
     await query.edit_message_text("\n".join(lines))
     context.user_data.clear()

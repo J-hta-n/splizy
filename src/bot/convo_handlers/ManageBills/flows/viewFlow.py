@@ -44,31 +44,40 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         .execute()
         .data
     )
-    user_expenses = (
-        supabase.table("user_expenses")
-        .select("*")
-        .eq("expense_id", expense["id"])
-        .execute()
-        .data
-    )
+    payees = expense.get("payees") or []
+
+    def get_payee_user(entry: dict):
+        return entry.get("user") or entry.get("username")
+
+    payees_by_username = {
+        get_payee_user(entry): Decimal(str(entry.get("amount", 0)))
+        for entry in payees
+        if get_payee_user(entry)
+    }
+
     context.user_data["all_participants"] = [user["username"] for user in users]
     context.user_data["has_mult"] = expense.get("multiplier") is not None
     context.user_data["mult_val"] = expense.get("multiplier")
 
     if expense["is_equal_split"]:
         context.user_data["split_type"] = (
-            "equal_some" if len(user_expenses) < len(users) else "equal_all"
+            "equal_some" if len(payees) < len(users) else "equal_all"
         )
     else:
         context.user_data["split_type"] = "custom"
     context.user_data["selected_participants"] = [
-        ue["username"] for ue in user_expenses
+        get_payee_user(entry)
+        for entry in payees
+        if get_payee_user(entry) in context.user_data["all_participants"]
     ]
     context.user_data["participant_selections"] = [
         username in context.user_data["selected_participants"]
         for username in context.user_data["all_participants"]
     ]
-    context.user_data["custom_amounts"] = [ue["amount"] for ue in user_expenses]
+    context.user_data["custom_amounts"] = [
+        payees_by_username.get(username, Decimal("0"))
+        for username in context.user_data["all_participants"]
+    ]
 
     context.user_data["expense_id"] = expense[
         "id"

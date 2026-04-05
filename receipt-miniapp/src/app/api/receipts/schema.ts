@@ -22,6 +22,11 @@ export const lastReceiptSchema = z.object({
   receipt: receiptSchema,
 });
 
+export const payeeSchema = z.object({
+  user: z.string(),
+  amount: z.number(),
+});
+
 export const tempReceiptSubmitPayloadSchema = z.object({
   title: z.string(),
   paid_by: z.string(),
@@ -41,6 +46,7 @@ export const tempReceiptRowSchema = z.object({
 export type ReceiptItem = z.infer<typeof itemSchema>;
 export type Receipt = z.infer<typeof receiptSchema>;
 export type LastReceipt = z.infer<typeof lastReceiptSchema>;
+export type Payee = z.infer<typeof payeeSchema>;
 export type TempReceiptSubmitPayload = z.infer<
   typeof tempReceiptSubmitPayloadSchema
 >;

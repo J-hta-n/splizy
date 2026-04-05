@@ -4,7 +4,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_utils.miniapp import open_miniapp
 from src.bot.convo_utils.parsers import parse_amount, parse_multiplier, parse_username
 from src.bot.convo_utils.renderers import (
     send_all_expenses,
@@ -14,10 +13,46 @@ from src.bot.convo_utils.renderers import (
 )
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
-from src.lib.receipt_parser.index import parse_receipt
 from src.lib.splizy_repo.database import supabase
 
 logger = get_logger(__name__)
+
+
+def _build_payees(data: dict) -> list[dict]:
+    if data["split_type"] in ["equal_all", "equal_some"]:
+        participants = (
+            data["all_participants"]
+            if data["split_type"] == "equal_all"
+            else data["selected_participants"]
+        )
+        if not participants:
+            return []
+        amount_per_pax = data["amount"] / len(participants)
+        return [
+            {
+                "user": username,
+                "amount": float(amount_per_pax),
+            }
+            for username in participants
+        ]
+
+    # Custom split
+    has_mult = data.get("has_mult", False)
+    mult_val = Decimal(str(data.get("mult_val", 1))) if has_mult else Decimal("1")
+    payees: list[dict] = []
+    for idx, (username, amount) in enumerate(
+        zip(data["all_participants"], data["custom_amounts"])
+    ):
+        if not data["participant_selections"][idx]:
+            continue
+        final_amount = Decimal(str(amount)) * mult_val
+        payees.append(
+            {
+                "user": username,
+                "amount": float(final_amount),
+            }
+        )
+    return payees
 
 
 @group_only
@@ -288,6 +323,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     elif action == "submit_form":
         data = context.user_data
+        payees = _build_payees(data)
         entry = {
             "group_id": query.message.chat.id,
             "title": data["expense_name"],
@@ -300,16 +336,14 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if ("has_mult" in data and data["has_mult"])
                 else None
             ),
+            "payees": payees,
         }
         # NOTE: look into implementing transactions with supabase.table().rpc() in future if needed; for now
         # things are simple enough that failures are unlikely / manual rollbacks are manageable, so no need
         # to overengineer at the moment
         try:
             if "expense_id" in data:
-                # If editing existing expense, delete all outdated user_expenses first and update expense
-                supabase.table("user_expenses").delete().eq(
-                    "expense_id", data["expense_id"]
-                ).execute()
+                # If editing existing expense, update the row in-place.
                 supabase.table("expenses").update(entry).eq(
                     "id", data["expense_id"]
                 ).execute()
@@ -319,45 +353,6 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     supabase.table("expenses").insert(entry).execute().data[0]["id"]
                 )
                 data["expense_id"] = new_expense_id
-            # Then create new user_expenses
-            if data["split_type"] == "equal_all" or data["split_type"] == "equal_some":
-                participants = (
-                    data["all_participants"]
-                    if data["split_type"] == "equal_all"
-                    else data["selected_participants"]
-                )
-                amount_per_pax = str(data["amount"] / len(participants))
-                supabase.table("user_expenses").insert(
-                    [
-                        {
-                            "username": username,
-                            "group_id": query.message.chat.id,
-                            "expense_id": data["expense_id"],
-                            "amount": amount_per_pax,
-                        }
-                        for username in participants
-                    ]
-                ).execute()
-            else:
-                # Custom split
-                supabase.table("user_expenses").insert(
-                    [
-                        {
-                            "username": username,
-                            "group_id": query.message.chat.id,
-                            "expense_id": data["expense_id"],
-                            "amount": (
-                                str(amount * Decimal(data["mult_val"]))
-                                if data["has_mult"]
-                                else str(amount)
-                            ),
-                        }
-                        for idx, (username, amount) in enumerate(
-                            zip(data["selected_participants"], data["custom_amounts"])
-                        )
-                        if data["participant_selections"][idx]
-                    ]
-                ).execute()
             await query.edit_message_text(
                 f"Expense for {data['expense_name']} saved successfully!"
             )
