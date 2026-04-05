@@ -17,16 +17,31 @@ export const receiptSchema = z.object({
   currency: z.string(),
 });
 
-export const tempReceiptPayloadSchema = z.object({
+export const lastReceiptSchema = z.object({
+  users: z.array(z.string()),
+  receipt: receiptSchema,
+});
+
+export const tempReceiptSubmitPayloadSchema = z.object({
   title: z.string(),
   paid_by: z.string(),
-  last_confirmation: z.boolean(),
-  last_receipt: z.object({
-    users: z.array(z.string()),
-    receipt: receiptSchema,
-  }),
+  last_receipt: lastReceiptSchema,
+});
+
+export const tempReceiptRowSchema = z.object({
+  id: z.number().optional(),
+  created_at: z.string().optional(),
+  group_id: z.union([z.number(), z.string()]).nullable().optional(),
+  title: z.string().nullable().optional(),
+  paid_by: z.string().nullable().optional(),
+  expense_id: z.string().uuid().nullable().optional(),
+  last_receipt: lastReceiptSchema.nullable().optional(),
 });
 
 export type ReceiptItem = z.infer<typeof itemSchema>;
 export type Receipt = z.infer<typeof receiptSchema>;
-export type TempReceiptPayload = z.infer<typeof tempReceiptPayloadSchema>;
+export type LastReceipt = z.infer<typeof lastReceiptSchema>;
+export type TempReceiptSubmitPayload = z.infer<
+  typeof tempReceiptSubmitPayloadSchema
+>;
+export type TempReceiptRow = z.infer<typeof tempReceiptRowSchema>;

@@ -1,6 +1,6 @@
-from src.lib.receipt_parser.model import ParsedReceipt
+from src.lib.receipt_parser.model import Receipt
 
-mock_parsed_receipt: ParsedReceipt = ParsedReceipt(
+mock_parsed_receipt: Receipt = Receipt(
     **{
         "items": [
             {

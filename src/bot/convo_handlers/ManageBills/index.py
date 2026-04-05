@@ -3,7 +3,6 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, f
 from src.bot.convo_handlers.Base import BaseConversation
 from src.bot.convo_handlers.ManageBills.flows.addFlow import (
     add_command,
-    add_receipt_command,
     expense_amount,
     expense_confirm,
     expense_custom_amount,
@@ -15,7 +14,11 @@ from src.bot.convo_handlers.ManageBills.flows.addFlow import (
 )
 from src.bot.convo_handlers.ManageBills.flows.deleteFlow import delete_expense
 from src.bot.convo_handlers.ManageBills.flows.editFlow import edit_or_go_back
-from src.bot.convo_handlers.ManageBills.flows.receiptFlow import expense_receipt_upload
+from src.bot.convo_handlers.ManageBills.flows.receiptFlow import (
+    add_receipt_command,
+    expense_receipt_done,
+    expense_receipt_upload,
+)
 from src.bot.convo_handlers.ManageBills.flows.unevenSplitFlow import (
     expense_custom_split,
 )
@@ -41,7 +44,13 @@ class ManageBills(BaseConversation):
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_name)
             ],
             States.EXPENSE_RECEIPT_UPLOAD: [
-                MessageHandler(filters.PHOTO, expense_receipt_upload)
+                MessageHandler(
+                    (filters.PHOTO | filters.TEXT) & ~filters.COMMAND,
+                    expense_receipt_upload,
+                )
+            ],
+            States.EXPENSE_RECEIPT_CONFIRM: [
+                CallbackQueryHandler(expense_receipt_done, pattern="^receipt_done$")
             ],
             States.EXPENSE_AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_amount)

@@ -1,9 +1,9 @@
-import { TempReceiptPayload } from "./schema";
+import { TempReceiptRow } from "./schema";
 
-export const mockTempReceiptPayload: TempReceiptPayload = {
+export const mockTempReceiptPayload: TempReceiptRow = {
   title: "Dinner",
   paid_by: "Alice",
-  last_confirmation: false,
+  expense_id: null,
   last_receipt: {
     users: ["Alice", "Bob", "Charlie", "David", "Eve"],
     receipt: {

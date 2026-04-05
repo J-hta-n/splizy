@@ -19,7 +19,11 @@ import {
 import { ConfirmItems } from "./_components/ConfirmItems";
 import { IndividualItems } from "./_components/IndividualItems";
 import { SharedItems } from "./_components/SharedItems";
-import { Receipt, TempReceiptPayload } from "./api/receipts/schema";
+import {
+  Receipt,
+  TempReceiptRow,
+  TempReceiptSubmitPayload,
+} from "./api/receipts/schema";
 import {
   clamp,
   formatMoney,
@@ -88,11 +92,11 @@ export default function Home() {
           throw new Error(body.error || "Failed to load receipt row");
         }
 
-        const data: TempReceiptPayload = await response.json();
-        const loadedReceipt = data.last_receipt.receipt ?? blankReceipt;
+        const data: TempReceiptRow = await response.json();
+        const loadedReceipt = data.last_receipt?.receipt ?? blankReceipt;
         setReceipt(loadedReceipt);
 
-        const users = data.last_receipt.users;
+        const users = data.last_receipt?.users ?? [];
 
         setUsers(users);
         setExpenseTitle(data.title ?? "");
@@ -157,14 +161,13 @@ export default function Home() {
       return null;
     }
 
-    const payload: TempReceiptPayload = {
+    const payload: TempReceiptSubmitPayload = {
       title: expenseTitle.trim() || "Untitled expense",
       paid_by: paidBy,
       last_receipt: {
         receipt: normalizedReceiptForSubmit,
         users,
       },
-      last_confirmation: true,
     };
 
     setSaving(true);
