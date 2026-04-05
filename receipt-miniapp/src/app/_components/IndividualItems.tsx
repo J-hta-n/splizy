@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/utils";
 import {
   Box,
   Button,
@@ -15,7 +16,6 @@ type IndividualItemsProps = {
   selectedItemAssignments: ItemAssignments | null;
   itemSummaries: ItemSummary[];
   currency: string;
-  formatMoney: (value: number) => string;
   onSelectUser: (user: string) => void;
   onAdjustQuantity: (itemIndex: number, delta: number) => void;
   onBack: () => void;
@@ -111,7 +111,6 @@ export function IndividualItems({
   selectedItemAssignments,
   itemSummaries,
   currency,
-  formatMoney,
   onSelectUser,
   onAdjustQuantity,
   onBack,

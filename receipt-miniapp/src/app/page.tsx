@@ -14,7 +14,7 @@ import { ConfirmItems } from "./_components/ConfirmItems";
 import { IndividualItems } from "./_components/IndividualItems";
 import { SharedItems } from "./_components/SharedItems";
 import { Receipt, TempReceiptPayload } from "./api/receipts/schema";
-import { clamp, formatMoney, getUserIndivSplits } from "@/lib/utils";
+import { clamp, getUserIndivSplits } from "@/lib/utils";
 import { ItemSummary, UserIndivSplit } from "@/lib/types";
 
 const blankReceipt: Receipt = {
@@ -102,11 +102,19 @@ export default function Home() {
     });
   }, [receipt.items]);
 
-  const saveData = async (payload: TempReceiptPayload) => {
+  const saveData = async () => {
     if (!groupId) {
       setError("Missing group_id query parameter");
       return null;
     }
+
+    const payload: TempReceiptPayload = {
+      last_receipt: {
+        receipt,
+        users,
+      },
+      last_confirmation: true,
+    };
 
     setSaving(true);
     setError(null);
@@ -315,7 +323,6 @@ export default function Home() {
             {step === 1 ? (
               <ConfirmItems
                 receipt={receipt}
-                formatMoney={formatMoney}
                 onUpdateItem={updateStep1Item}
                 onUpdateMeta={updateStep1Meta}
                 onAddItem={addStep1Item}
@@ -330,7 +337,6 @@ export default function Home() {
                 selectedItemAssignments={selectedItemAssignments}
                 itemSummaries={itemSummaries}
                 currency={receipt.currency}
-                formatMoney={formatMoney}
                 onSelectUser={setSelectedUserStep2}
                 onAdjustQuantity={updateIndivItemQtyByDelta}
                 onBack={() => setStep(1)}
@@ -346,18 +352,12 @@ export default function Home() {
                 sharedSelections={sharedSelections}
                 splitModalItemIndex={splitModalItemIndex}
                 modalSelection={modalSelection}
-                formatMoney={formatMoney}
                 onOpenSplitModal={openSplitModal}
                 onCloseSplitModal={() => setSplitModalItemIndex(null)}
                 onToggleModalUser={toggleModalUser}
                 onConfirmSplitSelection={confirmSplitSelection}
                 onBack={() => setStep(2)}
-                onSave={() =>
-                  saveData({
-                    last_confirmation: true,
-                    last_receipt: { users, receipt },
-                  })
-                }
+                onSave={saveData}
               />
             ) : null}
           </>

@@ -21,10 +21,10 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { Receipt } from "@src/app/api/receipts/schema";
+import { formatMoney } from "@/lib/utils";
 
 type ConfirmItemsProps = {
   receipt: Receipt;
-  formatMoney: (value: number) => string;
   onUpdateItem: (
     index: number,
     field: "name" | "quantity" | "subtotal",
@@ -41,7 +41,6 @@ type ConfirmItemsProps = {
 
 export function ConfirmItems({
   receipt,
-  formatMoney,
   onUpdateItem,
   onUpdateMeta,
   onAddItem,

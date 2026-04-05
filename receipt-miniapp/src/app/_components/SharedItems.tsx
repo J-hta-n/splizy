@@ -14,6 +14,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { formatMoney } from "@/lib/utils";
 
 type SharedItemsProps = {
   users: string[];
@@ -23,7 +24,6 @@ type SharedItemsProps = {
   sharedSelections: string[][];
   splitModalItemIndex: number | null;
   modalSelection: string[];
-  formatMoney: (value: number) => string;
   onOpenSplitModal: (itemIndex: number) => void;
   onCloseSplitModal: () => void;
   onToggleModalUser: (user: string) => void;
@@ -40,7 +40,6 @@ export function SharedItems({
   sharedSelections,
   splitModalItemIndex,
   modalSelection,
-  formatMoney,
   onOpenSplitModal,
   onCloseSplitModal,
   onToggleModalUser,
