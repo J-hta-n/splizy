@@ -3,7 +3,7 @@ import { z } from "zod";
 export const itemSchema = z.object({
   name: z.string(),
   quantity: z.number(),
-  subtotal: z.number().nullable(),
+  subtotal: z.number(),
   indiv: z.array(z.object({ username: z.string(), quantity: z.number() })),
   shared: z.array(z.string()),
 });

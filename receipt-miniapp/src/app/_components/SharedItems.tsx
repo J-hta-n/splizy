@@ -48,7 +48,7 @@ export function SharedItems({
   onBack,
   onSave,
 }: SharedItemsProps) {
-  const shareableItems = itemSummaries.filter((entry) => entry.leftover > 0);
+  const shareableItems = itemSummaries.filter((entry) => entry.sharedQty > 0);
 
   const currentModalItem =
     splitModalItemIndex === null
@@ -83,11 +83,11 @@ export function SharedItems({
                   </CardContent>
                 </Card>
               ) : (
-                shareableItems.map(({ item, key, leftover, index }) => {
-                  const selected = sharedSelections[key] ?? [];
+                shareableItems.map(({ item, sharedQty, index }) => {
+                  const selected = sharedSelections[index] ?? [];
                   return (
                     <Box
-                      key={key}
+                      key={index}
                       sx={{
                         display: "grid",
                         gridTemplateColumns: {
@@ -111,7 +111,7 @@ export function SharedItems({
                           {item.name || "Unnamed item"}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          qty left: {leftover}, total {currency}{" "}
+                          qty left: {sharedQty}, total {currency}{" "}
                           {formatMoney(item.subtotal ?? 0)}
                         </Typography>
                       </Box>
@@ -204,7 +204,7 @@ export function SharedItems({
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={1}>
-            Leftover qty: {currentModalItem?.leftover ?? 0}
+            Leftover qty: {currentModalItem?.sharedQty ?? 0}
           </Typography>
           <Stack>
             {users.map((user) => {

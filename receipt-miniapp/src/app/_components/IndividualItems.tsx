@@ -7,12 +7,12 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { IndivSplit, ItemSummary } from "@src/lib/types";
+import { ItemAssignments, ItemSummary, UserIndivSplit } from "@src/lib/types";
 
 type IndividualItemsProps = {
   users: string[];
   selectedUser: string | null;
-  selectedUserIndiv: IndivSplit | null;
+  selectedItemAssignments: ItemAssignments | null;
   itemSummaries: ItemSummary[];
   currency: string;
   saving: boolean;
@@ -109,7 +109,7 @@ const QuantityControl = ({
 export function IndividualItems({
   users,
   selectedUser,
-  selectedUserIndiv,
+  selectedItemAssignments,
   itemSummaries,
   currency,
   saving,
@@ -141,11 +141,11 @@ export function IndividualItems({
       <Card variant="outlined">
         <CardContent>
           <Stack spacing={1.25}>
-            {itemSummaries.map(({ item, index, key, unitPrice }) => {
-              const currentQty = selectedUserIndiv?.quantities[key] ?? 0;
+            {itemSummaries.map(({ item, index, unitPrice }) => {
+              const curQty = selectedItemAssignments?.get(index) ?? 0;
               return (
                 <Box
-                  key={key}
+                  key={index}
                   sx={{
                     display: "grid",
                     gridTemplateColumns: "1fr auto",
@@ -171,7 +171,7 @@ export function IndividualItems({
                     </Typography>
                   </Box>
                   <QuantityControl
-                    value={currentQty}
+                    value={curQty}
                     onMinus={() => onAdjustQuantity(index, -1)}
                     onPlus={() => onAdjustQuantity(index, 1)}
                   />

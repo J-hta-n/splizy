@@ -14,14 +14,8 @@ import { ConfirmItems } from "./_components/ConfirmItems";
 import { IndividualItems } from "./_components/IndividualItems";
 import { SharedItems } from "./_components/SharedItems";
 import { Receipt, TempReceiptPayload } from "./api/receipts/schema";
-import {
-  clamp,
-  formatMoney,
-  getUserIndivSplits,
-  normalizeAssignments,
-  unique,
-} from "@/lib/utils";
-import { UserIndivSplit } from "@/lib/types";
+import { clamp, formatMoney, getUserIndivSplits, unique } from "@/lib/utils";
+import { ItemSummary, UserIndivSplit } from "@/lib/types";
 
 const blankReceipt: Receipt = {
   items: [{ name: "", quantity: 1, subtotal: 0, indiv: [], shared: [] }],
@@ -46,9 +40,7 @@ export default function Home() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [sharedSelections, setSharedSelections] = useState<
-    Record<string, string[]>
-  >({});
+  const [sharedSelections, setSharedSelections] = useState<string[][]>([]);
   const [splitModalItemIndex, setSplitModalItemIndex] = useState<number | null>(
     null,
   );
@@ -90,15 +82,6 @@ export default function Home() {
 
         const userIndivSplits = getUserIndivSplits(receipt, users);
         setUserIndivSplits(userIndivSplits);
-
-        const selections: Record<string, string[]> = {};
-        receipt.items.forEach((_, index) => {
-          const key = String(index);
-          selections[key] = nextShared
-            .filter((entry) => (entry.quantities[key] ?? 0) > 0)
-            .map((entry) => entry.user);
-        });
-        setSharedSelections(selections);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load data");
       } finally {
@@ -111,15 +94,10 @@ export default function Home() {
 
   const itemSummaries: ItemSummary[] = useMemo(() => {
     return receipt.items.map((item, index) => {
-      const key = String(index);
-      const indivTotal = userIndivSplits.reduce(
-        (sum, entry) => sum + (entry.quantities[key] ?? 0),
-        0,
-      );
-      const leftover = Math.max(0, item.quantity - indivTotal);
-      const unitPrice =
-        item.quantity > 0 ? (item.subtotal ?? 0) / item.quantity : 0;
-      return { item, index, key, indivTotal, leftover, unitPrice };
+      const indivsQty = item.indiv.reduce((sum, i) => sum + i.quantity, 0);
+      const sharedQty = Math.max(0, item.quantity - indivsQty);
+      const unitPrice = item.quantity > 0 ? item.subtotal / item.quantity : 0;
+      return { item, index, indivsQty, sharedQty, unitPrice };
     });
   }, [receipt.items, userIndivSplits]);
 
@@ -163,22 +141,16 @@ export default function Home() {
     field: "name" | "quantity" | "subtotal",
     value: string,
   ) => {
-    setReceipt((current) => {
-      const nextItems = [...current.items];
-      const nextItem = { ...nextItems[index] };
-      if (field === "name") nextItem.name = value;
-      if (field === "quantity")
-        nextItem.quantity = Number.isFinite(Number(value)) ? Number(value) : 0;
-      if (field === "subtotal")
-        nextItem.subtotal = value === "" ? null : Number(value);
-      nextItems[index] = nextItem;
+    setReceipt((cur) => {
+      const nextItems = [...cur.items];
+      const editItem = nextItems[index];
+      if (field === "name") editItem.name = value;
+      if (field === "quantity") editItem.quantity = Number(value);
+      if (field === "subtotal") editItem.subtotal = Number(value);
 
-      const subtotal = nextItems.reduce(
-        (sum, item) => sum + (item.subtotal ?? 0),
-        0,
-      );
-      const total = subtotal + current.service_charge + current.gst;
-      return { ...current, items: nextItems, subtotal, total };
+      const subtotal = nextItems.reduce((sum, item) => sum + item.subtotal, 0);
+      const total = subtotal + cur.service_charge + cur.gst;
+      return { ...cur, items: nextItems, subtotal, total };
     });
   };
 
@@ -186,12 +158,12 @@ export default function Home() {
     field: "currency" | "service_charge" | "gst",
     value: string,
   ) => {
-    setReceipt((current) => {
-      const next = { ...current };
+    setReceipt((cur) => {
+      const next = { ...cur };
       if (field === "currency") {
         next.currency = value;
       } else {
-        next[field] = Number.isFinite(Number(value)) ? Number(value) : 0;
+        next[field] = Number(value);
       }
       next.total = next.subtotal + next.service_charge + next.gst;
       return next;
@@ -199,57 +171,56 @@ export default function Home() {
   };
 
   const addStep1Item = () => {
-    setReceipt((current) => ({
-      ...current,
-      items: [...current.items, { name: "", quantity: 1, subtotal: 0 }],
+    setReceipt((cur) => ({
+      ...cur,
+      items: [
+        ...cur.items,
+        { name: "<New Item>", quantity: 1, subtotal: 1, indiv: [], shared: [] },
+      ],
     }));
   };
 
   const removeStep1Items = (indices: number[]) => {
     const toDelete = new Set(indices);
-    setReceipt((current) => {
-      const items = current.items.filter((_, idx) => !toDelete.has(idx));
-      const subtotal = items.reduce(
-        (sum, item) => sum + (item.subtotal ?? 0),
-        0,
-      );
-      return {
-        ...current,
-        items,
-        subtotal,
-        total: subtotal + current.service_charge + current.gst,
-      };
+    setReceipt((cur) => {
+      const items = cur.items.filter((_, idx) => !toDelete.has(idx));
+      const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+      const total = subtotal + cur.service_charge + cur.gst;
+      return { ...cur, items, subtotal, total };
     });
   };
 
-  const updateIndividualQtyByDelta = (itemIndex: number, delta: number) => {
+  // Delta is either +1 or -1
+  const updateIndivItemQtyByDelta = (itemIndex: number, delta: number) => {
     if (!selectedUserStep2) return;
 
     const selectedUser = selectedUserStep2;
 
-    setUserIndivSplits((current) => {
-      const next = normalizeAssignments(users, current);
-      const targetIndex = next.findIndex(
-        (entry) => entry.user === selectedUser,
+    setUserIndivSplits(() => {
+      const next = getUserIndivSplits(receipt, users);
+      const userIndex = next.findIndex(
+        (entry) => entry.username === selectedUser,
       );
-      if (targetIndex < 0) return next;
+      if (userIndex < 0) return next;
 
-      const key = String(itemIndex);
-      const currentValue = next[targetIndex].quantities[key] ?? 0;
+      const curQty = next[userIndex].indivSplit.get(itemIndex) ?? 0;
       const othersTotal = next
-        .filter((entry) => entry.user !== selectedUser)
-        .reduce((sum, entry) => sum + (entry.quantities[key] ?? 0), 0);
+        .filter((entry) => entry.username !== selectedUser)
+        .reduce(
+          (sum, entry) => sum + (entry.indivSplit.get(itemIndex) ?? 0),
+          0,
+        );
       const maxAllowed = Math.max(
         0,
         receipt.items[itemIndex].quantity - othersTotal,
       );
-      const nextValue = clamp(currentValue + delta, 0, maxAllowed);
+      const nextQty = clamp(curQty + delta, 0, maxAllowed);
 
-      next[targetIndex] = {
-        ...next[targetIndex],
-        quantities: {
-          ...next[targetIndex].quantities,
-          [key]: nextValue,
+      next[userIndex] = {
+        ...next[userIndex],
+        indivSplit: {
+          ...next[userIndex].indivSplit,
+          [itemIndex]: nextQty,
         },
       };
 
@@ -257,34 +228,8 @@ export default function Home() {
     });
   };
 
-  const buildSharedAssignments = () => {
-    const base = normalizeAssignments(users, lastShared).map((entry) => ({
-      user: entry.user,
-      quantities: {} as Record<string, number>,
-    }));
-
-    itemSummaries.forEach(({ key, leftover }) => {
-      const selected = sharedSelections[key] ?? [];
-      if (leftover <= 0 || selected.length === 0) return;
-
-      const perUserBase = Math.floor(leftover / selected.length);
-      let remainder = leftover % selected.length;
-
-      selected.forEach((user) => {
-        const idx = base.findIndex((entry) => entry.user === user);
-        if (idx < 0) return;
-        const extra = remainder > 0 ? 1 : 0;
-        if (remainder > 0) remainder -= 1;
-        base[idx].quantities[key] = perUserBase + extra;
-      });
-    });
-
-    return base;
-  };
-
   const openSplitModal = (itemIndex: number) => {
-    const key = String(itemIndex);
-    setModalSelection(sharedSelections[key] ?? []);
+    setModalSelection(sharedSelections[itemIndex] ?? []);
     setSplitModalItemIndex(itemIndex);
   };
 
@@ -303,8 +248,9 @@ export default function Home() {
     );
   };
 
-  const selectedUserIndiv =
-    userIndivSplits.find((entry) => entry.user === selectedUserStep2) ?? null;
+  const selectedItemAssignments =
+    userIndivSplits.find((entry) => entry.username === selectedUserStep2)
+      ?.indivSplit ?? null;
 
   const stepLabels = [
     { step: 1, title: "Confirm" },
@@ -367,22 +313,22 @@ export default function Home() {
                 onUpdateMeta={updateStep1Meta}
                 onAddItem={addStep1Item}
                 onRemoveItems={removeStep1Items}
-                onSave={() => saveStep(1)}
+                onNext={() => setStep(2)}
               />
             ) : null}
             {step === 2 ? (
               <IndividualItems
                 users={users}
                 selectedUser={selectedUserStep2}
-                selectedUserIndiv={selectedUserIndiv}
+                selectedItemAssignments={selectedItemAssignments}
                 itemSummaries={itemSummaries}
                 currency={receipt.currency}
                 saving={saving}
                 formatMoney={formatMoney}
                 onSelectUser={setSelectedUserStep2}
-                onAdjustQuantity={updateIndividualQtyByDelta}
+                onAdjustQuantity={updateIndivItemQtyByDelta}
                 onBack={() => setStep(1)}
-                onSave={() => saveStep(2)}
+                onNext={() => setStep(3)}
               />
             ) : null}
             {step === 3 ? (
@@ -400,7 +346,12 @@ export default function Home() {
                 onToggleModalUser={toggleModalUser}
                 onConfirmSplitSelection={confirmSplitSelection}
                 onBack={() => setStep(2)}
-                onSave={() => saveStep(3)}
+                onSave={() =>
+                  saveData({
+                    last_confirmation: true,
+                    last_receipt: { users, receipt },
+                  })
+                }
               />
             ) : null}
           </>

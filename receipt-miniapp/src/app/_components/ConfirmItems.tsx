@@ -37,7 +37,7 @@ type ConfirmItemsProps = {
   ) => void;
   onAddItem: () => void;
   onRemoveItems: (indices: number[]) => void;
-  onSave: () => void;
+  onNext: () => void;
 };
 
 export function ConfirmItems({
@@ -48,7 +48,7 @@ export function ConfirmItems({
   onUpdateMeta,
   onAddItem,
   onRemoveItems,
-  onSave,
+  onNext,
 }: ConfirmItemsProps) {
   const [deleteMode, setDeleteMode] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<number[]>([]);
@@ -251,8 +251,8 @@ export function ConfirmItems({
               >
                 {deleteMode ? "Confirm deletion" : "Delete entry"}
               </Button>
-              <Button variant="contained" onClick={onSave} disabled={saving}>
-                {saving ? "Saving..." : "Save step 1"}
+              <Button variant="contained" onClick={onNext} disabled={saving}>
+                Proceed to step 2
               </Button>
             </Stack>
           </CardContent>
