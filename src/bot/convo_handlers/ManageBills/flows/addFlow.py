@@ -8,9 +8,9 @@ from src.bot.convo_handlers.ManageBills.utils.parsers import (
     parse_multiplier,
 )
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
-    send_all_expenses,
     send_confirmation_form,
     send_custom_multiselect_users,
+    send_expense_view,
     send_multiselect_users,
     send_select_user,
 )
@@ -276,11 +276,13 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
+        # If not editing, end convo
         if "expenses" not in context.user_data:
             await query.edit_message_text("Operation cancelled.")
             return ConversationHandler.END
-        await send_all_expenses(update, context, False)
-        return ManageBillStates.VIEW_EXPENSE
+        # If editing, go back to expense view
+        await send_expense_view(update, context)
+        return ManageBillStates.EDIT_OR_GO_BACK
 
     elif action == "submit_form":
         data = context.user_data
@@ -308,12 +310,16 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 supabase.table("expenses").update(entry).eq(
                     "id", data["expense_id"]
                 ).execute()
-            else:
-                # Else create new expense and record its expense_id
-                new_expense_id = (
-                    supabase.table("expenses").insert(entry).execute().data[0]["id"]
+                # Then return to expense view
+                await send_expense_view(
+                    update, context, "(Expense updated successfully)"
                 )
-                data["expense_id"] = new_expense_id
+                return ManageBillStates.EDIT_OR_GO_BACK
+            # Else create new expense and record its expense_id
+            new_expense_id = (
+                supabase.table("expenses").insert(entry).execute().data[0]["id"]
+            )
+            data["expense_id"] = new_expense_id
             await query.edit_message_text(
                 f"Expense for {data['expense_name']} saved successfully!"
             )

@@ -27,7 +27,9 @@ async def set_expense_currency(
         "id", group_id
     ).execute()
 
-    await update.callback_query.edit_message_text(f"Expense currency set to {currency}.")
+    await update.callback_query.edit_message_text(
+        f"Expense currency set to {currency}."
+    )
     return ConversationHandler.END
 
 
@@ -51,5 +53,7 @@ async def set_settleup_currency(
         "id", group_id
     ).execute()
 
-    await update.callback_query.edit_message_text(f"Settleup currency set to {currency}.")
+    await update.callback_query.edit_message_text(
+        f"Settleup currency set to {currency}."
+    )
     return ConversationHandler.END

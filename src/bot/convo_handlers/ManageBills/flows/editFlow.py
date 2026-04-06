@@ -36,6 +36,6 @@ async def edit_or_go_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             reply_markup=reply_markup,
         )
         return ManageBillStates.DELETE_EXPENSE
-    else:
+    elif action == "go_back":
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE

@@ -4,33 +4,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from config import MINIAPP_URL
+from src.bot.convo_handlers.ManageBills.utils.general import get_bill_summary
 from src.bot.convo_utils.formatters import get_2dp_str
-
-
-def get_bill_summary(data):
-    if data["split_type"] == "equal_all":
-        split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person)"
-    elif data["split_type"] == "equal_some":
-        selected_participants = data["selected_participants"]
-        split_status = f"equally among {len(selected_participants)} people (@{', @'.join(selected_participants)}, {data['currency']} {get_2dp_str(data['amount']/len(selected_participants))} per person)"
-    elif data["split_type"] == "custom":
-        mult_val = data["mult_val"] if data["has_mult"] else 1
-        custom_split_str = "\n".join(
-            f"@{username} - {get_2dp_str(Decimal(str(amount))*Decimal(mult_val))}"
-            for idx, (username, amount) in enumerate(
-                zip(data["selected_participants"], data["custom_amounts"])
-            )
-            if data["participant_selections"][idx]
-        )
-        split_status = f"by custom amounts in {data['currency']}\n{custom_split_str}"
-
-    summary = (
-        f"---Bill for {data['expense_name']}---\n"
-        f"Paid by: @{data['paid_by']}\n"
-        f"Currency & Amount: {data['currency']} {get_2dp_str(data['amount'])}\n"
-        f"Split: {split_status}\n"
-    )
-    return summary
 
 
 async def send_confirmation_form(
@@ -201,3 +176,19 @@ async def open_miniapp(update: Update, group_id: int, is_error_msg=False) -> Non
         await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
     else:
         await update.message.reply_text(text, reply_markup=reply_markup)
+
+
+async def send_expense_view(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, remarks=None
+):
+    summary = get_bill_summary(context.user_data)
+    text = summary if not remarks else f"{summary}\n{remarks}"
+    keyboard = [
+        [
+            InlineKeyboardButton("Edit", callback_data="edit_expense"),
+            InlineKeyboardButton("Delete", callback_data="delete_expense"),
+        ],
+        [InlineKeyboardButton("Go back", callback_data="go_back")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.edit_message_text(text, reply_markup=reply_markup)

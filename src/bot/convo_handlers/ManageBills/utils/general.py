@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+from src.bot.convo_utils.formatters import get_2dp_str
+
 
 def build_payees(data: dict) -> list[dict]:
     if data["split_type"] in ["equal_all", "equal_some"]:
@@ -36,3 +38,29 @@ def build_payees(data: dict) -> list[dict]:
             }
         )
     return payees
+
+
+def get_bill_summary(data):
+    if data["split_type"] == "equal_all":
+        split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person)"
+    elif data["split_type"] == "equal_some":
+        selected_participants = data["selected_participants"]
+        split_status = f"equally among {len(selected_participants)} people (@{', @'.join(selected_participants)}, {data['currency']} {get_2dp_str(data['amount']/len(selected_participants))} per person)"
+    elif data["split_type"] == "custom":
+        mult_val = data["mult_val"] if data["has_mult"] else 1
+        custom_split_str = "\n".join(
+            f"@{username} - {get_2dp_str(Decimal(str(amount))*Decimal(mult_val))}"
+            for idx, (username, amount) in enumerate(
+                zip(data["selected_participants"], data["custom_amounts"])
+            )
+            if data["participant_selections"][idx]
+        )
+        split_status = f"by custom amounts in {data['currency']}\n{custom_split_str}"
+
+    summary = (
+        f"---Bill for {data['expense_name']}---\n"
+        f"Paid by: @{data['paid_by']}\n"
+        f"Currency & Amount: {data['currency']} {get_2dp_str(data['amount'])}\n"
+        f"Split: {split_status}\n"
+    )
+    return summary
