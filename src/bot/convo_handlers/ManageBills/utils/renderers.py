@@ -3,6 +3,7 @@ from decimal import Decimal
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from config import MINIAPP_URL
 from src.bot.convo_utils.formatters import get_2dp_str
 
 
@@ -55,6 +56,17 @@ async def send_confirmation_form(
         await update.message.reply_text(summary, reply_markup=markup)
     else:
         await update.callback_query.edit_message_text(summary, reply_markup=markup)
+
+
+async def send_select_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = []
+    for username in context.user_data["all_participants"]:
+        keyboard.append([InlineKeyboardButton(username, callback_data=username)])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        f"Who paid for this expense of {context.user_data['currency']} {context.user_data['amount']}?",
+        reply_markup=reply_markup,
+    )
 
 
 async def send_multiselect_users(
@@ -167,3 +179,25 @@ async def send_all_expenses(
         await update.message.reply_text(text, reply_markup=reply_markup)
     else:
         await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+
+
+async def open_miniapp(update: Update, group_id: int, is_error_msg=False) -> None:
+    url = f"{MINIAPP_URL}/?group_id={group_id}"
+
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Open miniapp", url=url)],
+            [InlineKeyboardButton("I'm done", callback_data="receipt_done")],
+        ]
+    )
+
+    text = (
+        "Receipt parsed. Open the miniapp to review and confirm the split, then tap I'm done after submitting the expense via the miniapp."
+        if not is_error_msg
+        else "Submission not detected. Please submit in the miniapp first, then tap I'm done."
+    )
+
+    if is_error_msg:
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup)

@@ -23,16 +23,6 @@ def parse_amount(input: str) -> ParsedResult[tuple[Optional[str], Decimal]]:
         )
 
 
-def parse_username(input: str, usernames: list[str]) -> ParsedResult[str]:
-    try:
-        username = input.split("@")[1]
-        if username not in usernames:
-            return False, f"@{username} is not registered, please double check."
-        return True, username
-    except IndexError:
-        return False, "Invalid format, please try again, eg '@user1'."
-
-
 def parse_multiplier(input: str) -> ParsedResult[float]:
     try:
         mult_val = float(input)

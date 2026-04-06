@@ -4,13 +4,11 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_handlers.ManageBills.utils.miniapp import (
-    open_miniapp,
-    to_miniapp_receipt,
-)
 from src.bot.convo_handlers.ManageBills.utils.receipt import (
     compute_spending_from_last_receipt,
+    to_miniapp_receipt,
 )
+from src.bot.convo_handlers.ManageBills.utils.renderers import open_miniapp
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
 from src.lib.receipt_parser import Receipt, parse_receipt

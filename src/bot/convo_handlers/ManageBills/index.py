@@ -55,9 +55,7 @@ class ManageBills(BaseConversation):
             States.EXPENSE_AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_amount)
             ],
-            States.EXPENSE_PAID_BY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, expense_paid_by)
-            ],
+            States.EXPENSE_PAID_BY: [CallbackQueryHandler(expense_paid_by)],
             States.EXPENSE_SPLIT_TYPE: [CallbackQueryHandler(expense_split_type)],
             States.EXPENSE_PARTICIPANTS: [CallbackQueryHandler(expense_participants)],
             States.EXPENSE_CUSTOM_SPLIT: [CallbackQueryHandler(expense_custom_split)],
