@@ -72,7 +72,7 @@ async def register_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         .execute()
         .data
     )
-    existing_usernames = [user["username"] for user in existing_users]
+    existing_usernames = set([user["username"] for user in existing_users])
     new_usernames = [
         username for username in usernames if username not in existing_usernames
     ]

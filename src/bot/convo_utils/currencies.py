@@ -1,16 +1,19 @@
 ALL_CURRENCY_CODES = None  # Support in future if needed
 
 COMMON_CURRENCY_CODES = {
-    "MYR": "Malaysian Ringgit",
     "SGD": "Singapore Dollar",
-    "GBP": "British Pound",
+    "MYR": "Malaysian Ringgit",
+    "AUD": "Australian Dollar",
     "THB": "Thai Baht",
-    "JPY": "Japanese Yen",
-    "KRW": "Korean Won",
+    "VND": "Vietnamese Dong",
+    "IDR": "Indonesian Rupiah",
     "CNY": "Chinese Yuan",
+    "KRW": "Korean Won",
+    "JPY": "Japanese Yen",
+    "INR": "Indian Rupee",
+    "GBP": "British Pound",
     "USD": "US Dollar",
     "EUR": "Euro",
-    "AUD": "Australian Dollar",
 }
 
 COMMON_CURRENCY_CODES_STRING = "\n".join(

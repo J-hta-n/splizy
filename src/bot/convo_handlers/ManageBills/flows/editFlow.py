@@ -2,7 +2,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_utils.renderers import send_all_expenses, send_confirmation_form
+from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    send_all_expenses,
+    send_confirmation_form,
+)
 from src.lib.logger import get_logger
 
 logger = get_logger(__name__)
@@ -33,6 +36,6 @@ async def edit_or_go_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             reply_markup=reply_markup,
         )
         return ManageBillStates.DELETE_EXPENSE
-    else:
+    elif action == "go_back":
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE

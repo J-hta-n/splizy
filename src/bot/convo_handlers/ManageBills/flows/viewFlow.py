@@ -1,10 +1,13 @@
 from decimal import Decimal
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_utils.renderers import get_bill_summary, send_all_expenses
+from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    send_all_expenses,
+    send_expense_view,
+)
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.splizy_repo.database import supabase
 
@@ -46,13 +49,8 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     )
     payees = expense.get("payees") or []
 
-    def get_payee_user(entry: dict):
-        return entry.get("user") or entry.get("username")
-
     payees_by_username = {
-        get_payee_user(entry): Decimal(str(entry.get("amount", 0)))
-        for entry in payees
-        if get_payee_user(entry)
+        entry["user"]: Decimal(str(entry["amount"])) for entry in payees
     }
 
     context.user_data["all_participants"] = [user["username"] for user in users]
@@ -66,9 +64,9 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     else:
         context.user_data["split_type"] = "custom"
     context.user_data["selected_participants"] = [
-        get_payee_user(entry)
+        entry["user"]
         for entry in payees
-        if get_payee_user(entry) in context.user_data["all_participants"]
+        if entry["user"] in context.user_data["all_participants"]
     ]
     context.user_data["participant_selections"] = [
         username in context.user_data["selected_participants"]
@@ -88,14 +86,5 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data["currency"] = expense["currency"]
     context.user_data["is_equal_split"] = expense["is_equal_split"]
 
-    summary = get_bill_summary(context.user_data)
-    keyboard = [
-        [
-            InlineKeyboardButton("Edit", callback_data="edit_expense"),
-            InlineKeyboardButton("Delete", callback_data="delete_expense"),
-        ],
-        [InlineKeyboardButton("Go back", callback_data="go_back")],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(summary, reply_markup=reply_markup)
+    await send_expense_view(update, context)
     return ManageBillStates.EDIT_OR_GO_BACK

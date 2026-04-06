@@ -1,58 +1,24 @@
-from decimal import Decimal
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_utils.parsers import parse_amount, parse_multiplier, parse_username
-from src.bot.convo_utils.renderers import (
-    send_all_expenses,
+from src.bot.convo_handlers.ManageBills.utils.general import build_payees
+from src.bot.convo_handlers.ManageBills.utils.parsers import (
+    parse_amount,
+    parse_multiplier,
+)
+from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_confirmation_form,
     send_custom_multiselect_users,
+    send_expense_view,
     send_multiselect_users,
+    send_select_user,
 )
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
 from src.lib.splizy_repo.database import supabase
 
 logger = get_logger(__name__)
-
-
-def _build_payees(data: dict) -> list[dict]:
-    if data["split_type"] in ["equal_all", "equal_some"]:
-        participants = (
-            data["all_participants"]
-            if data["split_type"] == "equal_all"
-            else data["selected_participants"]
-        )
-        if not participants:
-            return []
-        amount_per_pax = data["amount"] / len(participants)
-        return [
-            {
-                "user": username,
-                "amount": float(amount_per_pax),
-            }
-            for username in participants
-        ]
-
-    # Custom split
-    has_mult = data.get("has_mult", False)
-    mult_val = Decimal(str(data.get("mult_val", 1))) if has_mult else Decimal("1")
-    payees: list[dict] = []
-    for idx, (username, amount) in enumerate(
-        zip(data["all_participants"], data["custom_amounts"])
-    ):
-        if not data["participant_selections"][idx]:
-            continue
-        final_amount = Decimal(str(amount)) * mult_val
-        payees.append(
-            {
-                "user": username,
-                "amount": float(final_amount),
-            }
-        )
-    return payees
 
 
 @group_only
@@ -62,7 +28,6 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "Let's add a new expense! Tell me what this is for? Eg 'Hotpot dinner'"
     )
     return ManageBillStates.EXPENSE_NAME
-
 
 
 async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -83,11 +48,18 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         .execute()
         .data[0]["expense_currency"]
     )
+    users = (
+        supabase.table("splizy_users")
+        .select("username")
+        .eq("group_id", update.message.chat.id)
+        .execute()
+        .data
+    )
     context.user_data["expense_currency"] = expense_currency
     context.user_data["currency"] = expense_currency
+    context.user_data["all_participants"] = [user["username"] for user in users]
     await update.message.reply_text(
-        "How much is it? Enter just the numeric value, eg '50.10'\n\n"
-        f"(Expense currency is in {expense_currency}, override by adding currency code in front, eg 'KRW 100 or MYR 100')"
+        f"How much is it in {expense_currency}? Enter just the numeric value, eg '50.10'\n\n"
     )
 
     return ManageBillStates.EXPENSE_AMOUNT
@@ -107,28 +79,16 @@ async def expense_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await send_confirmation_form(update, context)
         return ManageBillStates.EXPENSE_CONFIRM
 
-    await update.message.reply_text(
-        f"Who paid for this expense of {context.user_data['currency']} {context.user_data['amount']}? "
-        "Please enter the telegram handle, eg `@user1`"
-    )
+    await send_select_user(update, context)
     return ManageBillStates.EXPENSE_PAID_BY
 
 
 async def expense_paid_by(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    users = (
-        supabase.table("splizy_users")
-        .select("username")
-        .eq("group_id", update.message.chat.id)
-        .execute()
-        .data
-    )
-    usernames = [user["username"] for user in users]
-    context.user_data["all_participants"] = usernames
-    is_valid, result = parse_username(update.message.text, usernames)
-    if not is_valid:
-        await update.message.reply_text(result)
-        return ManageBillStates.EXPENSE_PAID_BY
-    context.user_data["paid_by"] = result
+    query = update.callback_query
+    await query.answer()
+
+    paid_by = query.data
+    context.user_data["paid_by"] = paid_by
 
     if "edit_field" in context.user_data:
         await send_confirmation_form(update, context)
@@ -149,8 +109,9 @@ async def expense_paid_by(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
-        f"👥 How do you want to split this expense?", reply_markup=reply_markup
+    await update.callback_query.edit_message_text(
+        f"👥 How do you want to split this expense paid by {paid_by}?",
+        reply_markup=reply_markup,
     )
     return ManageBillStates.EXPENSE_SPLIT_TYPE
 
@@ -315,15 +276,17 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
+        # If not editing, end convo
         if "expenses" not in context.user_data:
             await query.edit_message_text("Operation cancelled.")
             return ConversationHandler.END
-        await send_all_expenses(update, context, False)
-        return ManageBillStates.VIEW_EXPENSE
+        # If editing, go back to expense view
+        await send_expense_view(update, context)
+        return ManageBillStates.EDIT_OR_GO_BACK
 
     elif action == "submit_form":
         data = context.user_data
-        payees = _build_payees(data)
+        payees = build_payees(data)
         entry = {
             "group_id": query.message.chat.id,
             "title": data["expense_name"],
@@ -347,12 +310,16 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 supabase.table("expenses").update(entry).eq(
                     "id", data["expense_id"]
                 ).execute()
-            else:
-                # Else create new expense and record its expense_id
-                new_expense_id = (
-                    supabase.table("expenses").insert(entry).execute().data[0]["id"]
+                # Then return to expense view
+                await send_expense_view(
+                    update, context, "(Expense updated successfully)"
                 )
-                data["expense_id"] = new_expense_id
+                return ManageBillStates.EDIT_OR_GO_BACK
+            # Else create new expense and record its expense_id
+            new_expense_id = (
+                supabase.table("expenses").insert(entry).execute().data[0]["id"]
+            )
+            data["expense_id"] = new_expense_id
             await query.edit_message_text(
                 f"Expense for {data['expense_name']} saved successfully!"
             )

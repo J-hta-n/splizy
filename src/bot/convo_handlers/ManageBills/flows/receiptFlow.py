@@ -1,78 +1,20 @@
 import json
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src.bot.convo_utils.miniapp import open_miniapp
-from src.bot.convo_utils.wrappers import group_only
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
+from src.bot.convo_handlers.ManageBills.utils.receipt import (
+    compute_spending_from_last_receipt,
+    to_miniapp_receipt,
+)
+from src.bot.convo_handlers.ManageBills.utils.renderers import open_miniapp
+from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
 from src.lib.receipt_parser import Receipt, parse_receipt
 from src.lib.splizy_repo.database import supabase
 
 logger = get_logger(__name__)
-
-
-def _to_miniapp_receipt(receipt: Receipt) -> dict:
-    parsed = receipt.model_dump()
-    parsed["subtotal"] = float(parsed.get("subtotal") or 0)
-    parsed["service_charge"] = float(parsed.get("service_charge") or 0)
-    parsed["gst"] = float(parsed.get("gst") or 0)
-    parsed["total"] = float(parsed.get("total") or 0)
-
-    normalized_items = []
-    for item in parsed.get("items", []):
-        normalized_items.append(
-            {
-                "name": item.get("name") or "",
-                "quantity": int(item.get("quantity") or 0),
-                "subtotal": float(item.get("subtotal") or 0),
-                "indiv": item.get("indiv") or [],
-                "shared": item.get("shared") or [],
-            }
-        )
-
-    parsed["items"] = normalized_items
-    return parsed
-
-
-def _compute_spending_from_last_receipt(last_receipt: dict) -> dict:
-    users = last_receipt.get("users") or []
-    receipt = last_receipt.get("receipt") or {}
-    items = receipt.get("items") or []
-
-    spending = {user: 0.0 for user in users}
-
-    for item in items:
-        quantity = float(item.get("quantity") or 0)
-        subtotal = float(item.get("subtotal") or 0)
-        if quantity <= 0:
-            continue
-
-        unit_price = subtotal / quantity
-        indiv_entries = item.get("indiv") or []
-
-        for entry in indiv_entries:
-            username = entry.get("username")
-            qty = float(entry.get("quantity") or 0)
-            if username in spending:
-                spending[username] += unit_price * qty
-
-        indiv_qty = sum(float(entry.get("quantity") or 0) for entry in indiv_entries)
-        shared_qty = max(0.0, quantity - indiv_qty)
-        shared_users = [u for u in (item.get("shared") or []) if u in spending]
-        if shared_qty > 0 and len(shared_users) >= 2:
-            per_user = (unit_price * shared_qty) / len(shared_users)
-            for username in shared_users:
-                spending[username] += per_user
-
-    subtotal_value = float(receipt.get("subtotal") or 0)
-    total_value = float(receipt.get("total") or 0)
-    factor = (total_value / subtotal_value) if subtotal_value > 0 else 0
-    for username in spending:
-        spending[username] *= factor
-
-    return spending
 
 
 @group_only
@@ -116,9 +58,9 @@ async def expense_receipt_upload(
     except Exception as e:
         logger.error(f"Receipt parsing failed: {e}")
         await update.message.reply_text(
-            "Could not parse the receipt image. Please upload a clearer receipt photo."
+            "Could not parse the receipt image as service might be down. Please try again later or ping the admin at @jhtzz."
         )
-        return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
+        return ConversationHandler.END
 
     context.user_data["receipt"] = receipt
     logger.info(
@@ -148,7 +90,7 @@ async def expense_receipt_upload(
         "expense_id": None,
         "last_receipt": {
             "users": users,
-            "receipt": _to_miniapp_receipt(receipt),
+            "receipt": to_miniapp_receipt(receipt),
         },
     }
 
@@ -172,24 +114,15 @@ async def expense_receipt_upload(
     except Exception as e:
         logger.error(f"Failed to create temp receipt row: {e}")
         await update.message.reply_text(
-            "Failed to prepare receipt for miniapp review. Please try again."
+            "Failed to prepare receipt for miniapp review due to a db error. Please try again later or ping the admin at @jhtzz."
         )
         return ConversationHandler.END
 
     await open_miniapp(update, group_id)
-
-    done_keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("I'm done", callback_data="receipt_done")]]
-    )
-    await update.message.reply_text(
-        "After submitting in the miniapp, tap this button:",
-        reply_markup=done_keyboard,
-    )
-
     return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
 
 
-async def expense_receipt_done(
+async def expense_receipt_confirm(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     query = update.callback_query
@@ -208,15 +141,13 @@ async def expense_receipt_done(
 
     if not temp_rows:
         await query.edit_message_text(
-            "No temporary receipt session found for this group."
+            "No temporary receipt session found for this group, service might be down."
         )
-        return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
+        return ConversationHandler.END
 
     expense_id = temp_rows[0].get("expense_id")
     if not expense_id:
-        await query.edit_message_text(
-            "Submission not detected yet. Please submit in the miniapp first, then tap I'm done."
-        )
+        await open_miniapp(update, group_id, is_error_msg=True)
         return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
 
     expense_rows = (
@@ -229,21 +160,21 @@ async def expense_receipt_done(
     )
     if not expense_rows:
         await query.edit_message_text(
-            "Receipt was submitted but expense details could not be loaded."
+            "Receipt was submitted but expense details could not be loaded, service might be down."
         )
         return ConversationHandler.END
 
     expense = expense_rows[0]
     payees = expense.get("payees") or []
     user_spending_lines = [
-        f"{(entry.get('user') or entry.get('username') or '-')} - {expense.get('currency', '')} {entry.get('amount', '0')}"
+        f"{(entry.get('user') or entry.get('username') or '-')} - {expense.get('currency', '')} {float(entry.get('amount') or 0):.2f}"
         for entry in payees
         if (entry.get("user") or entry.get("username"))
     ]
 
     if not user_spending_lines:
         last_receipt = temp_rows[0].get("last_receipt") or {}
-        computed = _compute_spending_from_last_receipt(last_receipt)
+        computed = compute_spending_from_last_receipt(last_receipt)
         user_spending_lines = [
             f"{username} - {expense.get('currency', '')} {amount:.2f}"
             for username, amount in sorted(computed.items())
@@ -260,4 +191,3 @@ async def expense_receipt_done(
     await query.edit_message_text("\n".join(lines))
     context.user_data.clear()
     return ConversationHandler.END
-

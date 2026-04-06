@@ -16,7 +16,7 @@ from src.bot.convo_handlers.ManageBills.flows.deleteFlow import delete_expense
 from src.bot.convo_handlers.ManageBills.flows.editFlow import edit_or_go_back
 from src.bot.convo_handlers.ManageBills.flows.receiptFlow import (
     add_receipt_command,
-    expense_receipt_done,
+    expense_receipt_confirm,
     expense_receipt_upload,
 )
 from src.bot.convo_handlers.ManageBills.flows.unevenSplitFlow import (
@@ -50,14 +50,12 @@ class ManageBills(BaseConversation):
                 )
             ],
             States.EXPENSE_RECEIPT_CONFIRM: [
-                CallbackQueryHandler(expense_receipt_done, pattern="^receipt_done$")
+                CallbackQueryHandler(expense_receipt_confirm)
             ],
             States.EXPENSE_AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_amount)
             ],
-            States.EXPENSE_PAID_BY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, expense_paid_by)
-            ],
+            States.EXPENSE_PAID_BY: [CallbackQueryHandler(expense_paid_by)],
             States.EXPENSE_SPLIT_TYPE: [CallbackQueryHandler(expense_split_type)],
             States.EXPENSE_PARTICIPANTS: [CallbackQueryHandler(expense_participants)],
             States.EXPENSE_CUSTOM_SPLIT: [CallbackQueryHandler(expense_custom_split)],

@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { ConfirmItems } from "./_components/ConfirmItems";
 import { IndividualItems } from "./_components/IndividualItems";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 import { SharedItems } from "./_components/SharedItems";
 import {
   Receipt,
@@ -413,9 +414,17 @@ export default function Home() {
             Missing group_id in URL.
           </div>
         ) : loading ? (
-          <div className="rounded-3xl border-2 border-slate-300 bg-white p-4">
-            Loading...
-          </div>
+          <Box
+            sx={{
+              minHeight: "calc(100vh - 56px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              px: 1,
+            }}
+          >
+            <LoadingSpinner />
+          </Box>
         ) : submittedSuccessfully ? (
           <Box
             sx={{
@@ -616,8 +625,12 @@ export default function Home() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSubmitConfirmOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={confirmAndSubmit}>
-            Confirm
+          <Button
+            variant="contained"
+            onClick={confirmAndSubmit}
+            disabled={saving}
+          >
+            {saving ? "Submitting..." : "Submit"}
           </Button>
         </DialogActions>
       </Dialog>
