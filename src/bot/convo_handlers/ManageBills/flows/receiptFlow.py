@@ -1,11 +1,11 @@
 import json
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src.bot.convo_utils.miniapp import open_miniapp
-from src.bot.convo_utils.wrappers import group_only
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
+from src.bot.convo_handlers.ManageBills.utils.miniapp import open_miniapp
+from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
 from src.lib.receipt_parser import Receipt, parse_receipt
 from src.lib.splizy_repo.database import supabase
@@ -177,15 +177,6 @@ async def expense_receipt_upload(
         return ConversationHandler.END
 
     await open_miniapp(update, group_id)
-
-    done_keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("I'm done", callback_data="receipt_done")]]
-    )
-    await update.message.reply_text(
-        "After submitting in the miniapp, tap this button:",
-        reply_markup=done_keyboard,
-    )
-
     return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
 
 
@@ -260,4 +251,3 @@ async def expense_receipt_done(
     await query.edit_message_text("\n".join(lines))
     context.user_data.clear()
     return ConversationHandler.END
-

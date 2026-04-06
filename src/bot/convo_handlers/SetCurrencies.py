@@ -8,8 +8,8 @@ from telegram.ext import (
 )
 
 from src.bot.convo_handlers.Base import BaseConversation
+from src.bot.convo_handlers.ManageBills.utils.parsers import parse_currency
 from src.bot.convo_utils.currencies import COMMON_CURRENCY_CODES_STRING
-from src.bot.convo_utils.parsers import parse_currency
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.splizy_repo.database import supabase
 

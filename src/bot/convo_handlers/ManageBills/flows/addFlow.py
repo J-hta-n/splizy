@@ -4,8 +4,12 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_utils.parsers import parse_amount, parse_multiplier, parse_username
-from src.bot.convo_utils.renderers import (
+from src.bot.convo_handlers.ManageBills.utils.parsers import (
+    parse_amount,
+    parse_multiplier,
+    parse_username,
+)
+from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_all_expenses,
     send_confirmation_form,
     send_custom_multiselect_users,
@@ -62,7 +66,6 @@ async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         "Let's add a new expense! Tell me what this is for? Eg 'Hotpot dinner'"
     )
     return ManageBillStates.EXPENSE_NAME
-
 
 
 async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

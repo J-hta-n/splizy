@@ -4,7 +4,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_utils.renderers import get_bill_summary, send_all_expenses
+from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    get_bill_summary,
+    send_all_expenses,
+)
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.splizy_repo.database import supabase
 

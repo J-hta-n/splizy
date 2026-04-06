@@ -50,7 +50,7 @@ class ManageBills(BaseConversation):
                 )
             ],
             States.EXPENSE_RECEIPT_CONFIRM: [
-                CallbackQueryHandler(expense_receipt_done, pattern="^receipt_done$")
+                CallbackQueryHandler(expense_receipt_done)
             ],
             States.EXPENSE_AMOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_amount)

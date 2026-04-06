@@ -12,7 +12,6 @@ async def open_miniapp(update: Update, group_id: int) -> None:
             [InlineKeyboardButton("I'm done", callback_data="receipt_done")],
         ]
     )
-
     await update.message.reply_text(
         "Receipt parsed. Open the miniapp to review and confirm the split, then tap I'm done after submitting the expense via the miniapp.",
         reply_markup=keyboard,
