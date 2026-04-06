@@ -314,7 +314,7 @@ export function ConfirmItems({
                 variant="body2"
                 color="#ad5a00"
                 fontWeight={700}
-                fontSize={18}
+                fontSize={17}
               >
                 Subtotal: {formatMoney(receipt.subtotal)} {receipt.currency}
               </Typography>
@@ -322,7 +322,7 @@ export function ConfirmItems({
                 variant="body2"
                 color="#ad5a00"
                 fontWeight={700}
-                fontSize={18}
+                fontSize={17}
               >
                 Total: {formatMoney(receipt.total)} {receipt.currency}
               </Typography>

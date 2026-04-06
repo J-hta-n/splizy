@@ -625,8 +625,12 @@ export default function Home() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSubmitConfirmOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={confirmAndSubmit}>
-            Confirm
+          <Button
+            variant="contained"
+            onClick={confirmAndSubmit}
+            disabled={saving}
+          >
+            {saving ? "Submitting..." : "Submit"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -182,13 +182,14 @@ export function IndividualItems({
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={1.5}
+        pb={5}
         justifyContent="space-between"
       >
-        <Button variant="outlined" onClick={onBack}>
-          Back
-        </Button>
         <Button variant="contained" onClick={onNext}>
           Proceed to step 3
+        </Button>
+        <Button variant="outlined" onClick={onBack}>
+          Back
         </Button>
       </Stack>
     </Stack>

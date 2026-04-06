@@ -196,17 +196,18 @@ export function SharedItems({
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1.5}
+          pb={5}
           justifyContent="space-between"
         >
-          <Button variant="outlined" onClick={onBack}>
-            Back
-          </Button>
           <Button
             variant="contained"
             onClick={onSave}
             disabled={saving || users.length === 0}
           >
-            {saving ? "Submitting..." : "Submit expense"}
+            Submit expense
+          </Button>
+          <Button variant="outlined" onClick={onBack}>
+            Back
           </Button>
         </Stack>
       </Stack>
