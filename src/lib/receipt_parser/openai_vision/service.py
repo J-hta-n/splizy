@@ -22,7 +22,7 @@ def parse_receipt(image_bytes: bytes) -> Receipt:
     if not image_bytes:
         return empty_receipt()
 
-    provider = (config.RECEIPT_PARSER_PROVIDER or "gemini").strip().lower()
+    provider = config.RECEIPT_PARSER_PROVIDER
     if provider != "openai":
         raise RuntimeError(
             f"Unsupported receipt parser provider '{provider}'. Supported providers: openai"

@@ -156,7 +156,9 @@ async def send_all_expenses(
         await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
 
 
-async def open_miniapp(update: Update, group_id: int, is_error_msg=False) -> None:
+async def open_miniapp(
+    update: Update, group_id: int, is_error_msg=False, message=None
+) -> None:
     url = f"{MINIAPP_URL}/?group_id={group_id}"
 
     reply_markup = InlineKeyboardMarkup(
@@ -172,10 +174,10 @@ async def open_miniapp(update: Update, group_id: int, is_error_msg=False) -> Non
         else "Submission not detected. Please submit in the miniapp first, then tap I'm done."
     )
 
-    if is_error_msg:
-        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+    if message is not None:
+        await message.edit_text(text, reply_markup=reply_markup)
     else:
-        await update.message.reply_text(text, reply_markup=reply_markup)
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
 
 
 async def send_expense_view(

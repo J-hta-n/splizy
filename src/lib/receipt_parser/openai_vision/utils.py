@@ -18,7 +18,6 @@ def extract_receipt_payload_with_openai_vision(image_bytes: bytes) -> Dict[str, 
     image_base64 = base64.b64encode(image_bytes).decode("ascii")
     client = OpenAI(
         api_key=config.OPENAI_API_KEY,
-        base_url=config.OPENAI_BASE_URL or None,
         timeout=config.RECEIPT_PARSER_TIMEOUT_SEC,
     )
 

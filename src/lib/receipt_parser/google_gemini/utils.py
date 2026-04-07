@@ -13,11 +13,6 @@ from src.lib.receipt_parser.utils import (
 )
 
 
-def _gemini_base_url() -> str:
-    configured = (config.GEMINI_BASE_URL or "").strip().rstrip("/")
-    return configured or "https://generativelanguage.googleapis.com"
-
-
 def _extract_text_from_gemini_response(response_payload: Dict[str, Any]) -> str:
     candidates = response_payload.get("candidates") or []
     for candidate in candidates:
@@ -45,7 +40,7 @@ def extract_receipt_payload_with_gemini_vision(image_bytes: bytes) -> Dict[str, 
 
     mime_type = detect_image_mime_type(image_bytes)
     image_base64 = base64.b64encode(image_bytes).decode("ascii")
-    model = (config.RECEIPT_PARSER_MODEL or "gemini-2.5-flash-lite").strip()
+    model = config.RECEIPT_PARSER_MODEL
 
     request_payload = {
         "systemInstruction": {
@@ -74,15 +69,17 @@ def extract_receipt_payload_with_gemini_vision(image_bytes: bytes) -> Dict[str, 
     }
 
     url = (
-        f"{_gemini_base_url()}/v1beta/models/"
+        f"{config.GEMINI_BASE_URL}/v1beta/models/"
         f"{urllib.parse.quote(model, safe='')}:generateContent"
-        f"?key={urllib.parse.quote(config.GEMINI_API_KEY, safe='')}"
     )
 
     request = urllib.request.Request(
         url,
         data=json.dumps(request_payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": config.GEMINI_API_KEY,
+        },
         method="POST",
     )
 

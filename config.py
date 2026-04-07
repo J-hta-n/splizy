@@ -25,4 +25,8 @@ RECEIPT_PARSER_MONTHLY_LIMIT = int(
 RECEIPT_PARSER_USAGE_FILE_PATH = os.environ.get(
     "RECEIPT_PARSER_USAGE_FILE_PATH", ".receipt_parser_usage.json"
 )
+GEMINI_BASE_URL = os.environ.get(
+    "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com"
+).rstrip("/")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

@@ -118,8 +118,7 @@ def usage_month_key() -> str:
 
 
 def usage_file_path() -> str:
-    configured = (config.RECEIPT_PARSER_USAGE_FILE_PATH or "").strip()
-    path = configured or ".receipt_parser_usage.json"
+    path = config.RECEIPT_PARSER_USAGE_FILE_PATH
     if os.path.isabs(path):
         return path
     return os.path.abspath(path)
@@ -148,7 +147,7 @@ def save_usage_state(path: str, state: Dict[str, Any]) -> None:
 
 
 def enforce_monthly_quota() -> None:
-    monthly_limit = max(0, int(config.RECEIPT_PARSER_MONTHLY_LIMIT))
+    monthly_limit = config.RECEIPT_PARSER_MONTHLY_LIMIT
     if monthly_limit == 0:
         return
 
