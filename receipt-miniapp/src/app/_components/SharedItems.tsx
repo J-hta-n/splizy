@@ -69,8 +69,8 @@ export function SharedItems({
               Step 3/3: Please assign shared items
             </Typography>
             <Typography variant="body2" mt={1}>
-              Tap &quot;Split among&quot; for each item to choose users sharing
-              it.
+              For all remaining shared items, tap &quot;Split among&quot; to
+              choose the users involved.
             </Typography>
           </CardContent>
         </Card>

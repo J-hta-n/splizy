@@ -64,7 +64,7 @@ const UserCards = ({
             style={{
               borderRadius: 12,
               border: active ? "2px solid #2e7d32" : "2px solid #81c784",
-              padding: "10px 12px",
+              padding: "9px 9px",
               fontWeight: 700,
               background: active ? "#c8e6c9" : "#e8f5e9",
               color: active ? "#1b5e20" : "#2e7d32",
@@ -121,10 +121,11 @@ export function IndividualItems({
       <Card sx={{ backgroundColor: "#e8f5e9" }}>
         <CardContent>
           <Typography fontWeight={700}>
-            Step 2/3: Please assign non-shared items
+            Step 2/3: Please assign individual items
           </Typography>
           <Typography variant="body2" mt={1}>
-            Currently viewing for: {selectedUser ?? "-"}
+            You can assign specific quantities of items to each user. Currently
+            viewing for: {selectedUser ?? "-"}
           </Typography>
         </CardContent>
       </Card>

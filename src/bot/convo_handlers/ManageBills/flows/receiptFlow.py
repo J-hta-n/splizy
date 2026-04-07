@@ -53,6 +53,9 @@ async def expense_receipt_upload(
         return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
 
     logger.info("Photo received. Parsing...")
+    wait_msg = await update.message.reply_text(
+        "Photo received, please wait a few seconds for parsing..."
+    )
     try:
         receipt: Receipt = parse_receipt(bytes(image_bytes))
     except Exception as e:
@@ -118,7 +121,7 @@ async def expense_receipt_upload(
         )
         return ConversationHandler.END
 
-    await open_miniapp(update, group_id)
+    await open_miniapp(update, group_id, message=wait_msg)
     return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
 
 
