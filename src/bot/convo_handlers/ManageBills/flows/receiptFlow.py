@@ -54,7 +54,7 @@ async def expense_receipt_upload(
 
     logger.info("Photo received. Parsing...")
     wait_msg = await update.message.reply_text(
-        "Photo received, please wait up to 20 seconds for parsing..."
+        "Photo received, please wait a few seconds for parsing..."
     )
     try:
         receipt: Receipt = parse_receipt(bytes(image_bytes))
