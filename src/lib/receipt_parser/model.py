@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -33,3 +33,34 @@ class Receipt(BaseModel):
 class MiniappReceipt(BaseModel):
     users: List[str]
     receipt: Receipt
+
+
+RECEIPT_JSON_SCHEMA: Dict[str, Any] = {
+    "name": "receipt",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["items", "subtotal", "service_charge", "gst", "total", "currency"],
+        "properties": {
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["name", "quantity", "subtotal"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "quantity": {"type": "integer", "minimum": 1},
+                        "subtotal": {"type": "number", "minimum": 0},
+                    },
+                },
+            },
+            "subtotal": {"type": "number", "minimum": 0},
+            "service_charge": {"type": "number", "minimum": 0},
+            "gst": {"type": "number", "minimum": 0},
+            "total": {"type": "number", "minimum": 0},
+            "currency": {"type": "string"},
+        },
+    },
+}
