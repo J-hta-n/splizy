@@ -4,7 +4,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from config import MINIAPP_URL
-from src.bot.convo_handlers.ManageBills.utils.general import get_bill_summary
+from src.bot.convo_handlers.ManageBills.utils.general import (
+    get_bill_summary,
+    get_bill_summary_with_receipt,
+)
 from src.bot.convo_utils.formatters import get_2dp_str
 
 
@@ -184,12 +187,35 @@ async def send_expense_view(
     update: Update, context: ContextTypes.DEFAULT_TYPE, remarks=None
 ):
     summary = get_bill_summary(context.user_data)
+    has_receipt = context.user_data["receipt"] is not None
+    text = summary if not remarks else f"{summary}\n{remarks}"
+    keyboard = [
+        [
+            InlineKeyboardButton("Edit", callback_data="edit_expense"),
+            InlineKeyboardButton("Delete", callback_data="delete_expense"),
+        ]
+    ]
+    if has_receipt:
+        keyboard.append(
+            [InlineKeyboardButton("Show receipt details", callback_data="show_receipt")]
+        )
+    keyboard.append([InlineKeyboardButton("Go back", callback_data="go_back")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+
+
+async def send_expense_with_receipt_view(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, remarks=None
+):
+    summary = get_bill_summary_with_receipt(context.user_data)
     text = summary if not remarks else f"{summary}\n{remarks}"
     keyboard = [
         [
             InlineKeyboardButton("Edit", callback_data="edit_expense"),
             InlineKeyboardButton("Delete", callback_data="delete_expense"),
         ],
+        [InlineKeyboardButton("Hide receipt details", callback_data="hide_receipt")],
         [InlineKeyboardButton("Go back", callback_data="go_back")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)

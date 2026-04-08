@@ -85,6 +85,7 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data["paid_by"] = expense["paid_by"]
     context.user_data["currency"] = expense["currency"]
     context.user_data["is_equal_split"] = expense["is_equal_split"]
+    context.user_data["receipt"] = expense["receipt"]
 
     await send_expense_view(update, context)
     return ManageBillStates.EDIT_OR_GO_BACK

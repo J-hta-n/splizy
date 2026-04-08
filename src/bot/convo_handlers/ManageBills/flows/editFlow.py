@@ -5,6 +5,8 @@ from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_all_expenses,
     send_confirmation_form,
+    send_expense_view,
+    send_expense_with_receipt_view,
 )
 from src.lib.logger import get_logger
 
@@ -39,3 +41,9 @@ async def edit_or_go_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif action == "go_back":
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE
+    elif action == "show_receipt":
+        await send_expense_with_receipt_view(update, context)
+        return ManageBillStates.EDIT_OR_GO_BACK
+    elif action == "hide_receipt":
+        await send_expense_view(update, context)
+        return ManageBillStates.EDIT_OR_GO_BACK
