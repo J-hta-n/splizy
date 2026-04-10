@@ -55,7 +55,7 @@ def get_bill_summary(data):
             )
             if data["participant_selections"][idx]
         )
-        split_status = f"by custom amounts in {data['currency']}\n{custom_split_str}"
+        split_status = f"by custom amounts in {data['currency']}{' (Receipt details available)' if data['receipt'] is not None else ''}\n{custom_split_str}"
 
     summary = (
         f"---Bill for {data['expense_name']}---\n"

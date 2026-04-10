@@ -3,6 +3,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    open_miniapp,
     send_all_expenses,
     send_confirmation_form,
     send_expense_view,
@@ -19,8 +20,14 @@ async def edit_or_go_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     action = query.data
 
     if action == "edit_expense":
+        if context.user_data["receipt"]:
+            await open_miniapp(
+                update=update, expense_id=context.user_data["expense_id"]
+            )
+            return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
         await send_confirmation_form(update, context, False)
         return ManageBillStates.EXPENSE_CONFIRM
+
     elif action == "delete_expense":
         data = context.user_data
         keyboard = [

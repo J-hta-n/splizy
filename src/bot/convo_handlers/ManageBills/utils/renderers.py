@@ -11,7 +11,6 @@ from src.bot.convo_handlers.ManageBills.utils.general import (
 )
 from src.bot.convo_utils.formatters import get_2dp_str
 
-
 MAX_TELEGRAM_TEXT_LEN = 3800
 RECEIPT_DETAIL_MESSAGE_IDS_KEY = "receipt_detail_message_ids"
 
@@ -215,9 +214,11 @@ async def send_all_expenses(
 
 
 async def open_miniapp(
-    update: Update, group_id: int, is_error_msg=False, message=None
+    update: Update, group_id=None, expense_id=None, is_error_msg=False, message=None
 ) -> None:
-    url = f"{MINIAPP_URL}/?group_id={group_id}"
+    url = f"{MINIAPP_URL}/?"
+    # expense_id signals edit, while group_id signals add
+    url += f"expense_id={expense_id}" if expense_id else f"group_id={group_id}"
 
     reply_markup = InlineKeyboardMarkup(
         [
@@ -227,9 +228,13 @@ async def open_miniapp(
     )
 
     text = (
-        "Receipt parsed. Open the miniapp to review and confirm the split, then tap I'm done after submitting the expense via the miniapp."
-        if not is_error_msg
-        else "Submission not detected. Please submit in the miniapp first, then tap I'm done."
+        "Please open the miniapp to edit the receipt bill split, then tap I'm done after submitting via the miniapp"
+        if expense_id
+        else (
+            "Receipt parsed. Open the miniapp to review and confirm the split, then tap I'm done after submitting the expense via the miniapp."
+            if not is_error_msg
+            else "Submission not detected. Please submit in the miniapp first, then tap I'm done."
+        )
     )
 
     if message is not None:
@@ -284,7 +289,9 @@ async def send_expense_with_receipt_view(
 
     detail_message_ids: list[int] = []
     for chunk in chunks[1:]:
-        sent = await context.bot.send_message(chat_id=update.effective_chat.id, text=chunk)
+        sent = await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=chunk
+        )
         detail_message_ids.append(sent.message_id)
 
     context.user_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = detail_message_ids

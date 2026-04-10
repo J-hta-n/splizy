@@ -8,7 +8,10 @@ from src.bot.convo_handlers.ManageBills.utils.receipt import (
     compute_spending_from_last_receipt,
     to_miniapp_receipt,
 )
-from src.bot.convo_handlers.ManageBills.utils.renderers import open_miniapp
+from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    open_miniapp,
+    send_expense_view,
+)
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
 from src.lib.receipt_parser import Receipt, parse_receipt
@@ -130,6 +133,12 @@ async def expense_receipt_confirm(
 ) -> int:
     query = update.callback_query
     await query.answer()
+
+    # Go back to expense view if just editing
+    is_editing = context.user_data["expense_id"] is not None
+    if is_editing:
+        await send_expense_view(update, context)
+        return ManageBillStates.EDIT_OR_GO_BACK
 
     group_id = query.message.chat.id
     temp_rows = (
