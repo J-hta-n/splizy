@@ -228,7 +228,7 @@ async def open_miniapp(
     )
 
     text = (
-        "Please open the miniapp to edit the receipt bill split, then tap I'm done after submitting via the miniapp"
+        "Please open the miniapp to edit the receipt bill split, then tap I'm done after submitting via the miniapp."
         if expense_id
         else (
             "Receipt parsed. Open the miniapp to review and confirm the split, then tap I'm done after submitting the expense via the miniapp."

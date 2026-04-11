@@ -1,4 +1,4 @@
-import { Receipt, ReceiptItem } from "@/app/api/receipts/schema";
+import { Receipt, ReceiptItem } from "@/app/api/expenses/schema";
 import { UserIndivSplit } from "./types";
 
 export const formatMoney = (value: number) => {
@@ -56,42 +56,4 @@ export const normaliseSharedItems = (receipt: Receipt, users: string[]) => {
       shared: normalizedShared,
     };
   });
-};
-
-export const getSpendingByUserIncludingCharges = (
-  receipt: Receipt,
-  users: string[],
-) => {
-  const spendByUser: Record<string, number> = {};
-  for (const user of users) {
-    spendByUser[user] = 0;
-  }
-
-  for (const item of receipt.items) {
-    if (item.quantity <= 0) continue;
-
-    const unitPrice = item.subtotal / item.quantity;
-
-    for (const entry of item.indiv) {
-      if (!(entry.username in spendByUser)) continue;
-      spendByUser[entry.username] += unitPrice * entry.quantity;
-    }
-
-    const indivsQty = getItemIndivsQty(item);
-    const sharedQty = Math.max(0, item.quantity - indivsQty);
-    const sharedUsers = item.shared.filter((user) => users.includes(user));
-    if (sharedQty <= 0 || sharedUsers.length < 2) continue;
-
-    const amountPerUser = (unitPrice * sharedQty) / sharedUsers.length;
-    for (const user of sharedUsers) {
-      spendByUser[user] += amountPerUser;
-    }
-  }
-
-  const factor = receipt.subtotal > 0 ? receipt.total / receipt.subtotal : 0;
-  for (const user of users) {
-    spendByUser[user] *= factor;
-  }
-
-  return spendByUser;
 };

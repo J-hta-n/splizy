@@ -21,19 +21,19 @@ import { IndividualItems } from "./_components/IndividualItems";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { SharedItems } from "./_components/SharedItems";
 import {
-  Receipt,
+  PatchTempReceiptSchema,
   TempReceiptRow,
-  TempReceiptSubmitPayload,
-} from "./api/receipts/schema";
+} from "./api/expenses/tempReceipt/schema";
 import {
   clamp,
   formatMoney,
   getItemIndivsQty,
-  getSpendingByUserIncludingCharges,
   getUserIndivSplits,
   normaliseSharedItems,
 } from "@/lib/utils";
 import { ItemSummary, UserIndivSplit } from "@/lib/types";
+import { PostExpenseSchema, Receipt } from "./api/expenses/schema";
+import { getPayeesFromReceipt } from "@/lib/db/utils";
 
 const blankReceipt: Receipt = {
   items: [{ name: "", quantity: 1, subtotal: 0, indiv: [], shared: [] }],
@@ -46,6 +46,7 @@ const blankReceipt: Receipt = {
 
 export default function Home() {
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [expenseId, setExpenseId] = useState<string | null>(null);
   const [users, setUsers] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<Receipt>(blankReceipt);
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -72,7 +73,10 @@ export default function Home() {
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    setGroupId(query.get("group_id"));
+    const groupId = query.get("group_id");
+    const expenseId = query.get("expense_id");
+    setGroupId(groupId);
+    setExpenseId(expenseId);
   }, []);
 
   useEffect(() => {
@@ -86,7 +90,9 @@ export default function Home() {
       setError(null);
       try {
         const response = await fetch(
-          `/api/receipts?group_id=${encodeURIComponent(groupId)}`,
+          expenseId
+            ? `/api/expenses?expense_id=${encodeURIComponent(expenseId)}`
+            : `/api/expenses/tempReceipt?group_id=${encodeURIComponent(groupId)}`,
         );
         if (!response.ok) {
           const body = await response.json();
@@ -113,7 +119,7 @@ export default function Home() {
     };
 
     fetchReceipt();
-  }, [groupId]);
+  }, [groupId, expenseId]);
 
   useEffect(() => {
     if (users.length === 0) {
@@ -146,14 +152,14 @@ export default function Home() {
     [receipt, users],
   );
 
-  const spendByUser = useMemo(
-    () => getSpendingByUserIncludingCharges(normalizedReceiptForSubmit, users),
+  const payees = useMemo(
+    () => getPayeesFromReceipt(users, normalizedReceiptForSubmit),
     [normalizedReceiptForSubmit, users],
   );
 
   const saveData = async () => {
     if (!groupId) {
-      setError("Missing group_id query parameter");
+      setError("Missing group_id. Unable to submit.");
       return null;
     }
 
@@ -162,39 +168,78 @@ export default function Home() {
       return null;
     }
 
-    const payload: TempReceiptSubmitPayload = {
-      title: expenseTitle.trim() || "Untitled expense",
-      paid_by: paidBy,
-      last_receipt: {
-        receipt: normalizedReceiptForSubmit,
-        users,
-      },
-    };
-
     setSaving(true);
     setError(null);
     setMessage(null);
 
     try {
-      const response = await fetch(
-        `/api/receipts?group_id=${encodeURIComponent(groupId)}`,
-        {
+      if (expenseId) {
+        const expensePayload: PostExpenseSchema = {
+          title: expenseTitle.trim() || "Untitled expense",
+          paid_by: paidBy,
+          group_id: Number(groupId),
+          users,
+          receipt: normalizedReceiptForSubmit,
+        };
+        const response = await fetch(`/api/expenses/${expenseId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
-      if (!response.ok) {
-        const body = await response.json();
-        throw new Error(body.error || "Failed to save receipt row");
-      }
+          body: JSON.stringify(expensePayload),
+        });
+        if (!response.ok) {
+          const body = await response.json();
+          throw new Error(body.error || "Failed to update expense");
+        }
+      } else {
+        const expensePayload: PostExpenseSchema = {
+          title: expenseTitle.trim() || "Untitled expense",
+          paid_by: paidBy,
+          group_id: Number(groupId),
+          users,
+          receipt: normalizedReceiptForSubmit,
+        };
+        const postResponse = await fetch(`/api/expenses`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(expensePayload),
+        });
+        const postBody = await postResponse.json();
+        if (!postResponse.ok) {
+          throw new Error(postBody.error || "Failed to submit expense");
+        }
+        const expenseId = postBody.expense?.id;
+        if (!expenseId) {
+          throw new Error("Failed to submit expense");
+        }
 
-      await response.json();
+        const tempReceiptPayload: PatchTempReceiptSchema = {
+          title: expenseTitle.trim() || "Untitled expense",
+          paid_by: paidBy,
+          expense_id: expenseId,
+          last_receipt: {
+            receipt: normalizedReceiptForSubmit,
+            users,
+          },
+        };
+        const patchResponse = await fetch(
+          `/api/expenses/tempReceipt?group_id=${encodeURIComponent(groupId)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(tempReceiptPayload),
+          },
+        );
+        if (!patchResponse.ok) {
+          const body = await patchResponse.json();
+          throw new Error(body.error || "Failed to save receipt row");
+        }
+      }
       setMessage("Saved successfully.");
       setSubmittedSuccessfully(true);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save data");
+      setSubmitConfirmOpen(false);
       return false;
     } finally {
       setSaving(false);
@@ -601,19 +646,19 @@ export default function Home() {
                     User spendings
                   </Typography>
                   <Stack spacing={0.5}>
-                    {users.map((user) => (
+                    {payees.map((payee) => (
                       <Box
-                        key={user}
+                        key={payee.user}
                         sx={{
                           display: "flex",
                           justifyContent: "space-between",
                           gap: 1,
                         }}
                       >
-                        <Typography color="#ad5a00">{user}</Typography>
+                        <Typography color="#ad5a00">{payee.user}</Typography>
                         <Typography color="#ad5a00">
                           {normalizedReceiptForSubmit.currency}{" "}
-                          {formatMoney(spendByUser[user] ?? 0)}
+                          {formatMoney(payee.amount ?? 0)}
                         </Typography>
                       </Box>
                     ))}

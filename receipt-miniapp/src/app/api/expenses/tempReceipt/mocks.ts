@@ -1,9 +1,12 @@
 import { TempReceiptRow } from "./schema";
 
 export const mockTempReceiptPayload: TempReceiptRow = {
+  id: 1,
+  created_at: new Date().toISOString(),
+  group_id: 1,
   title: "Dinner",
   paid_by: "Alice",
-  expense_id: null,
+  expense_id: "123",
   last_receipt: {
     users: ["Alice", "Bob", "Charlie", "David", "Eve"],
     receipt: {
