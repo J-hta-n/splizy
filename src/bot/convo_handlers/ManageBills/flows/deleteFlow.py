@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.renderers import send_all_expenses
 from src.lib.logger import get_logger
-from src.lib.splizy_repo.database import supabase
+from src.lib.splizy_repo.repo import repo
 
 logger = get_logger(__name__)
 
@@ -16,9 +16,7 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if action == "confirm_delete":
         expense_id = context.user_data["expense_id"]
-        supabase.table("expenses").delete().eq(
-            "id", expense_id
-        ).execute()  # Cascade deletes user_expenses
+        repo.delete_expense(expense_id)
         await query.edit_message_text("Expense deleted successfully.")
         context.user_data.clear()
         return ConversationHandler.END
