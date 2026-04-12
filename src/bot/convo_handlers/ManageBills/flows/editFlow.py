@@ -22,7 +22,9 @@ async def edit_or_go_back(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if action == "edit_expense":
         if context.user_data["receipt"]:
             await open_miniapp(
-                update=update, expense_id=context.user_data["expense_id"]
+                update=update,
+                group_id=update.effective_chat.id,
+                expense_id=context.user_data["expense_id"],
             )
             return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
         await send_confirmation_form(update, context, False)
