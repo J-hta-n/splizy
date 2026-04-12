@@ -132,7 +132,7 @@ def get_bill_summary_with_receipt(data):
         lines = [f"@{username} - ${get_2dp_str(total_spent)}"]
         if details:
             lines.extend(
-                f"- {_format_qty(qty)} {name} = ${get_2dp_str(amount)}"
+                f"- {_format_qty(qty)} {name} (${get_2dp_str(amount)})"
                 for qty, name, amount in details
             )
         user_blocks.append("\n".join(lines))
@@ -146,3 +146,38 @@ def get_bill_summary_with_receipt(data):
         f"User spendings (in {currency}):\n\n{user_spendings}"
     )
     return summary
+
+
+def populate_context_for_selected_expense_from_viewall(context, expense):
+    payees = expense["payees"]
+    payeesMap = {entry["user"]: Decimal(str(entry["amount"])) for entry in payees}
+    context.user_data["has_mult"] = expense.get("multiplier") is not None
+    context.user_data["mult_val"] = expense.get("multiplier")
+    if expense["is_equal_split"]:
+        context.user_data["split_type"] = (
+            "equal_some"
+            if len(payees) < len(context.user_data["all_participants"])
+            else "equal_all"
+        )
+    else:
+        context.user_data["split_type"] = "custom"
+    context.user_data["selected_participants"] = [
+        entry["user"]
+        for entry in payees
+        if entry["user"] in context.user_data["all_participants"]
+    ]
+    context.user_data["participant_selections"] = [
+        username in context.user_data["selected_participants"]
+        for username in context.user_data["all_participants"]
+    ]
+    context.user_data["custom_amounts"] = [
+        payeesMap.get(username, Decimal("0"))
+        for username in context.user_data["all_participants"]
+    ]
+    context.user_data["expense_id"] = expense["id"]
+    context.user_data["expense_name"] = expense["title"]
+    context.user_data["amount"] = Decimal(expense["amount"])
+    context.user_data["paid_by"] = expense["paid_by"]
+    context.user_data["currency"] = expense["currency"]
+    context.user_data["is_equal_split"] = expense["is_equal_split"]
+    context.user_data["receipt"] = expense["receipt"]
