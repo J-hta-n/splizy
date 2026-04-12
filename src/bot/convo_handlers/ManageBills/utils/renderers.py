@@ -200,7 +200,7 @@ async def send_all_expenses(
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    f"{expense['title']} | @{expense['paid_by']} | {expense['currency']} {expense['amount']}",
+                    f"{expense['title']} | @{expense['paid_by']} | {expense['currency']} {expense['amount']:.2f}",
                     callback_data=idx,
                 )
             ]
@@ -216,9 +216,9 @@ async def send_all_expenses(
 async def open_miniapp(
     update: Update, group_id=None, expense_id=None, is_error_msg=False, message=None
 ) -> None:
-    url = f"{MINIAPP_URL}/?"
-    # expense_id signals edit, while group_id signals add
-    url += f"expense_id={expense_id}" if expense_id else f"group_id={group_id}"
+    url = f"{MINIAPP_URL}/?group_id={group_id}"
+    # expense_id signals edit
+    url += f"&expense_id={expense_id}" if expense_id else ""
 
     reply_markup = InlineKeyboardMarkup(
         [
