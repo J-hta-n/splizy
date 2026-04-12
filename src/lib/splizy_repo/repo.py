@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from src.lib.splizy_repo.database import supabase
+from lib.splizy_repo.db import supabase
 from src.lib.splizy_repo.model import (
     ExpenseId,
     ExpenseInsert,
@@ -28,7 +28,7 @@ def _first_or_none(rows: list[object] | None) -> object | None:
 
 
 class SplizyRepo:
-    def ensure_group(self, payload: GroupUpsert) -> None:
+    def ensure_group_exists(self, payload: GroupUpsert) -> None:
         supabase.table("groups").upsert(payload).execute()
 
     def get_group(self, group_id: GroupId) -> GroupRow | None:

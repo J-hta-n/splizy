@@ -30,7 +30,7 @@ class RegisterUsers(BaseConversation):
 async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Register group chat id if not already registered
     group_id = update.message.chat.id
-    repo.ensure_group({"id": group_id})
+    repo.ensure_group_exists({"id": group_id})
 
     msg = "Please enter a list of user telegram handles separated by a space, eg `@user1 @user2 @user3`"
     cur_users = repo.list_group_users(group_id)

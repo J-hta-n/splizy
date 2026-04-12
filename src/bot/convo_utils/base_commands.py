@@ -19,7 +19,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Register group chat id if not already registered
     group_id = update.message.chat.id
-    repo.ensure_group({"id": group_id})
+    repo.ensure_group_exists({"id": group_id})
     cur_users = repo.list_group_users(group_id)
     msg = (
         "Hello there! I help make splitting bills easier for you all with the convenience of telegram groups.\n\n"
