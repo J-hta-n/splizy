@@ -16,7 +16,7 @@ from src.bot.convo_handlers.ManageBills.utils.renderers import (
 )
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
-from src.lib.splizy_repo.database import supabase
+from src.lib.splizy_repo.service import get_group_expense_setup, save_expense
 
 logger = get_logger(__name__)
 
@@ -41,23 +41,10 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await send_confirmation_form(update, context)
         return ManageBillStates.EXPENSE_CONFIRM
 
-    expense_currency = (
-        supabase.table("groups")
-        .select("expense_currency")
-        .eq("id", update.message.chat.id)
-        .execute()
-        .data[0]["expense_currency"]
-    )
-    users = (
-        supabase.table("splizy_users")
-        .select("username")
-        .eq("group_id", update.message.chat.id)
-        .execute()
-        .data
-    )
+    expense_currency, usernames = get_group_expense_setup(update.message.chat.id)
     context.user_data["expense_currency"] = expense_currency
     context.user_data["currency"] = expense_currency
-    context.user_data["all_participants"] = [user["username"] for user in users]
+    context.user_data["all_participants"] = usernames
     await update.message.reply_text(
         f"How much is it in {expense_currency}? Enter just the numeric value, eg '50.10'\n\n"
     )
@@ -276,50 +263,32 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
+        # If editing, just go back to expense view
+        if "expenses" in context.user_data:
+            await send_expense_view(update, context)
+            return ManageBillStates.EDIT_OR_GO_BACK
         # If not editing, end convo
-        if "expenses" not in context.user_data:
-            await query.edit_message_text("Operation cancelled.")
-            return ConversationHandler.END
-        # If editing, go back to expense view
-        await send_expense_view(update, context)
-        return ManageBillStates.EDIT_OR_GO_BACK
+        await query.edit_message_text("Operation cancelled.")
+        return ConversationHandler.END
 
     elif action == "submit_form":
         data = context.user_data
         payees = build_payees(data)
-        entry = {
-            "group_id": query.message.chat.id,
-            "title": data["expense_name"],
-            "amount": str(data["amount"]),  # Decimal is not JSON serializable
-            "paid_by": data["paid_by"],
-            "currency": data["currency"],
-            "is_equal_split": data["is_equal_split"],
-            "multiplier": (
-                str(data["mult_val"])
-                if ("has_mult" in data and data["has_mult"])
-                else None
-            ),
-            "payees": payees,
-        }
-        # NOTE: look into implementing transactions with supabase.table().rpc() in future if needed; for now
+        # NOTE: look into implementing transactions in the repo/service layer in future if needed; for now
         # things are simple enough that failures are unlikely / manual rollbacks are manageable, so no need
         # to overengineer at the moment
         try:
+            saved_expense = save_expense(query.message.chat.id, data, payees)
             if "expense_id" in data:
-                # If editing existing expense, update the row in-place.
-                supabase.table("expenses").update(entry).eq(
-                    "id", data["expense_id"]
-                ).execute()
-                # Then return to expense view
+                # Then update the context and return to expense view
+                index = context.user_data["expense_index"]
+                context.user_data["expenses"][index] = saved_expense
                 await send_expense_view(
                     update, context, "(Expense updated successfully)"
                 )
                 return ManageBillStates.EDIT_OR_GO_BACK
             # Else create new expense and record its expense_id
-            new_expense_id = (
-                supabase.table("expenses").insert(entry).execute().data[0]["id"]
-            )
-            data["expense_id"] = new_expense_id
+            data["expense_id"] = saved_expense["id"]
             await query.edit_message_text(
                 f"Expense for {data['expense_name']} saved successfully!"
             )

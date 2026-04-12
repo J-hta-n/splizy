@@ -4,15 +4,25 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
+from src.bot.convo_handlers.ManageBills.utils.general import (
+    populate_context_for_selected_expense_from_viewall,
+)
 from src.bot.convo_handlers.ManageBills.utils.receipt import (
     compute_spending_from_last_receipt,
     to_miniapp_receipt,
 )
-from src.bot.convo_handlers.ManageBills.utils.renderers import open_miniapp
+from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    open_miniapp,
+    send_expense_view,
+)
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.logger import get_logger
 from src.lib.receipt_parser import Receipt, parse_receipt
-from src.lib.splizy_repo.database import supabase
+from src.lib.splizy_repo.repo import repo
+from src.lib.splizy_repo.service import (
+    get_latest_temp_receipt_with_expense,
+    prepare_temp_receipt_review,
+)
 
 logger = get_logger(__name__)
 
@@ -77,43 +87,12 @@ async def expense_receipt_upload(
         return ManageBillStates.EXPENSE_RECEIPT_UPLOAD
 
     group_id = update.effective_chat.id
-    users_data = (
-        supabase.table("splizy_users")
-        .select("username")
-        .eq("group_id", group_id)
-        .execute()
-        .data
-    )
-    users = [entry["username"] for entry in users_data]
-
-    temp_entry = {
-        "group_id": group_id,
-        "title": None,
-        "paid_by": None,
-        "expense_id": None,
-        "last_receipt": {
-            "users": users,
-            "receipt": to_miniapp_receipt(receipt),
-        },
-    }
 
     try:
-        existing_rows = (
-            supabase.table("temp_receipts")
-            .select("id")
-            .eq("group_id", group_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-            .data
+        prepare_temp_receipt_review(
+            group_id,
+            to_miniapp_receipt(receipt),
         )
-
-        if existing_rows:
-            supabase.table("temp_receipts").update(temp_entry).eq(
-                "id", existing_rows[0]["id"]
-            ).execute()
-        else:
-            supabase.table("temp_receipts").insert(temp_entry).execute()
     except Exception as e:
         logger.error(f"Failed to create temp receipt row: {e}")
         await update.message.reply_text(
@@ -131,43 +110,41 @@ async def expense_receipt_confirm(
     query = update.callback_query
     await query.answer()
 
-    group_id = query.message.chat.id
-    temp_rows = (
-        supabase.table("temp_receipts")
-        .select("id, expense_id, last_receipt")
-        .eq("group_id", group_id)
-        .order("created_at", desc=True)
-        .limit(1)
-        .execute()
-        .data
-    )
+    # If editing, update the expense context and go back to expense view
+    is_editing = "expense_id" in context.user_data
+    if is_editing:
+        expense = repo.get_expense(context.user_data["expense_id"])
+        if expense is None:
+            await query.edit_message_text(
+                "Updated expense could not be loaded, service might be down."
+            )
+            return ConversationHandler.END
+        index = context.user_data["expense_index"]
+        context.user_data["expenses"][index] = expense
+        populate_context_for_selected_expense_from_viewall(context, expense)
+        await send_expense_view(update, context)
+        return ManageBillStates.EDIT_OR_GO_BACK
 
-    if not temp_rows:
+    group_id = query.message.chat.id
+    temp_receipt, expense = get_latest_temp_receipt_with_expense(group_id)
+
+    if temp_receipt is None:
         await query.edit_message_text(
             "No temporary receipt session found for this group, service might be down."
         )
         return ConversationHandler.END
 
-    expense_id = temp_rows[0].get("expense_id")
+    expense_id = temp_receipt.get("expense_id")
     if not expense_id:
         await open_miniapp(update, group_id, is_error_msg=True)
         return ManageBillStates.EXPENSE_RECEIPT_CONFIRM
 
-    expense_rows = (
-        supabase.table("expenses")
-        .select("title, amount, paid_by, currency, payees")
-        .eq("id", expense_id)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not expense_rows:
+    if expense is None:
         await query.edit_message_text(
             "Receipt was submitted but expense details could not be loaded, service might be down."
         )
         return ConversationHandler.END
 
-    expense = expense_rows[0]
     payees = expense.get("payees") or []
     user_spending_lines = [
         f"{(entry.get('user') or entry.get('username') or '-')} - {expense.get('currency', '')} {float(entry.get('amount') or 0):.2f}"
@@ -176,16 +153,21 @@ async def expense_receipt_confirm(
     ]
 
     if not user_spending_lines:
-        last_receipt = temp_rows[0].get("last_receipt") or {}
+        last_receipt = temp_receipt.get("last_receipt") or {}
         computed = compute_spending_from_last_receipt(last_receipt)
         user_spending_lines = [
             f"{username} - {expense.get('currency', '')} {amount:.2f}"
             for username, amount in sorted(computed.items())
         ]
 
+    try:
+        total_amount = float(expense.get("amount") or 0)
+    except (TypeError, ValueError):
+        total_amount = 0.0
+
     lines = [
         "Receipt saved successfully! Details:",
-        f"Total: {expense.get('currency', '')} {expense.get('amount', '0')}",
+        f"Total: {expense.get('currency', '')} {total_amount:.2f}",
         f"Paid by: {expense.get('paid_by', '-')}",
         "User spending:",
     ]

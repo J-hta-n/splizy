@@ -15,7 +15,11 @@ RECEIPT_PARSER_INSTRUCTION = (
     "Return JSON only that matches the schema. "
     "Rules: parse bilingual or multilingual receipts, keep item names concise and human readable, "
     "ignore notes like 'less sugar' or 'serve first/later' unless they are chargeable items, "
-    "set quantity and subtotal per line item, and map currency to ISO code when obvious (for S$ use SGD). "
+    "treat the receipt qty column as the source of truth for item count, "
+    "merge wrapped item-name lines into the same item when the next line has no new qty, "
+    "if an add-on/modifier line has a price but no qty, attach it to the previous item and add to that item's subtotal, "
+    "do not create extra items from continuation or add-on lines without their own qty, "
+    "set quantity and subtotal per final item, and map currency to ISO code when obvious (for S$ use SGD), "
     "If service charge or GST/tax is missing, set 0."
 )
 

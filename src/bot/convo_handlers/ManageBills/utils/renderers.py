@@ -1,11 +1,66 @@
 from decimal import Decimal
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from config import MINIAPP_URL
-from src.bot.convo_handlers.ManageBills.utils.general import get_bill_summary
+from src.bot.convo_handlers.ManageBills.utils.general import (
+    get_bill_summary,
+    get_bill_summary_with_receipt,
+)
 from src.bot.convo_utils.formatters import get_2dp_str
+
+MAX_TELEGRAM_TEXT_LEN = 3800
+RECEIPT_DETAIL_MESSAGE_IDS_KEY = "receipt_detail_message_ids"
+
+
+def _chunk_text_by_blocks(text: str, max_len: int = MAX_TELEGRAM_TEXT_LEN) -> list[str]:
+    if len(text) <= max_len:
+        return [text]
+
+    blocks = text.split("\n\n")
+    chunks: list[str] = []
+    current = ""
+
+    for block in blocks:
+        candidate = block if not current else f"{current}\n\n{block}"
+        if len(candidate) <= max_len:
+            current = candidate
+            continue
+
+        if current:
+            chunks.append(current)
+            current = ""
+
+        while len(block) > max_len:
+            chunks.append(block[:max_len])
+            block = block[max_len:]
+
+        current = block
+
+    if current:
+        chunks.append(current)
+
+    return chunks
+
+
+async def _delete_receipt_detail_messages(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    message_ids = context.user_data.get(RECEIPT_DETAIL_MESSAGE_IDS_KEY, [])
+    if not message_ids:
+        return
+
+    chat_id = update.effective_chat.id
+    for message_id in message_ids:
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+        except BadRequest:
+            # Ignore messages that are already deleted or no longer deletable.
+            continue
+
+    context.user_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = []
 
 
 async def send_confirmation_form(
@@ -138,12 +193,14 @@ async def send_custom_multiselect_users(
 async def send_all_expenses(
     update: Update, context: ContextTypes.DEFAULT_TYPE, is_new_msg=True
 ):
+    await _delete_receipt_detail_messages(update, context)
+
     keyboard = []
     for idx, expense in enumerate(context.user_data["expenses"]):
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    f"{expense['title']} | @{expense['paid_by']} | {expense['currency']} {expense['amount']}",
+                    f"{expense['title']} | @{expense['paid_by']} | {expense['currency']} {expense['amount']:.2f}",
                     callback_data=idx,
                 )
             ]
@@ -157,9 +214,11 @@ async def send_all_expenses(
 
 
 async def open_miniapp(
-    update: Update, group_id: int, is_error_msg=False, message=None
+    update: Update, group_id=None, expense_id=None, is_error_msg=False, message=None
 ) -> None:
     url = f"{MINIAPP_URL}/?group_id={group_id}"
+    # expense_id signals edit
+    url += f"&expense_id={expense_id}" if expense_id else ""
 
     reply_markup = InlineKeyboardMarkup(
         [
@@ -169,9 +228,13 @@ async def open_miniapp(
     )
 
     text = (
-        "Receipt parsed. Open the miniapp to review and confirm the split, then tap I'm done after submitting the expense via the miniapp."
-        if not is_error_msg
-        else "Submission not detected. Please submit in the miniapp first, then tap I'm done."
+        "Please open the miniapp to edit the receipt bill split, then tap I'm done after submitting via the miniapp."
+        if expense_id
+        else (
+            "Receipt parsed. Open the miniapp to review and confirm the split, then tap I'm done after submitting the expense via the miniapp."
+            if not is_error_msg
+            else "Submission not detected. Please submit in the miniapp first, then tap I'm done."
+        )
     )
 
     if message is not None:
@@ -183,14 +246,52 @@ async def open_miniapp(
 async def send_expense_view(
     update: Update, context: ContextTypes.DEFAULT_TYPE, remarks=None
 ):
+    await _delete_receipt_detail_messages(update, context)
+
     summary = get_bill_summary(context.user_data)
+    has_receipt = context.user_data["receipt"] is not None
     text = summary if not remarks else f"{summary}\n{remarks}"
     keyboard = [
         [
             InlineKeyboardButton("Edit", callback_data="edit_expense"),
             InlineKeyboardButton("Delete", callback_data="delete_expense"),
+        ]
+    ]
+    if has_receipt:
+        keyboard.append(
+            [InlineKeyboardButton("Show receipt details", callback_data="show_receipt")]
+        )
+    keyboard.append([InlineKeyboardButton("Go back", callback_data="go_back")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+
+
+async def send_expense_with_receipt_view(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, remarks=None
+):
+    await _delete_receipt_detail_messages(update, context)
+
+    summary = get_bill_summary_with_receipt(context.user_data)
+    chunks = _chunk_text_by_blocks(summary)
+    first_text = chunks[0] if not remarks else f"{chunks[0]}\n{remarks}"
+
+    keyboard = [
+        [
+            InlineKeyboardButton("Edit", callback_data="edit_expense"),
+            InlineKeyboardButton("Delete", callback_data="delete_expense"),
         ],
+        [InlineKeyboardButton("Hide receipt details", callback_data="hide_receipt")],
         [InlineKeyboardButton("Go back", callback_data="go_back")],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
+    await update.callback_query.edit_message_text(first_text, reply_markup=reply_markup)
+
+    detail_message_ids: list[int] = []
+    for chunk in chunks[1:]:
+        sent = await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=chunk
+        )
+        detail_message_ids.append(sent.message_id)
+
+    context.user_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = detail_message_ids
