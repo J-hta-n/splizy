@@ -1,6 +1,6 @@
 from typing import TypeVar
 
-from src.bot.convo_utils.currencies import COMMON_CURRENCY_CODES
+from src.lib.currencies.config import COMMON_CURRENCY_CODES
 
 T = TypeVar("T")
 ParsedResult = tuple[bool, T | str]

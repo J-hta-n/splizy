@@ -23,7 +23,7 @@ def build_expense_payload(
     payload: ExpenseInsert = {
         "group_id": group_id,
         "title": str(data["expense_name"]),
-        "amount": str(data["amount"]),
+        "amount": float(data["amount"]),
         "paid_by": str(data["paid_by"]),
         "currency": str(data["currency"]),
         "is_equal_split": bool(data["is_equal_split"]),

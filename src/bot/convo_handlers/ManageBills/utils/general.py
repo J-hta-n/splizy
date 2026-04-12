@@ -176,7 +176,7 @@ def populate_context_for_selected_expense_from_viewall(context, expense):
     ]
     context.user_data["expense_id"] = expense["id"]
     context.user_data["expense_name"] = expense["title"]
-    context.user_data["amount"] = Decimal(expense["amount"])
+    context.user_data["amount"] = Decimal(str(expense["amount"]))
     context.user_data["paid_by"] = expense["paid_by"]
     context.user_data["currency"] = expense["currency"]
     context.user_data["is_equal_split"] = expense["is_equal_split"]

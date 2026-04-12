@@ -40,14 +40,14 @@ class ExpenseRow(TypedDict):
     id: ExpenseId
     group_id: GroupId
     title: str
-    amount: str
+    amount: float
     paid_by: str
     currency: CurrencyCode
     is_equal_split: bool
     payees: list[PayeeData]
     multiplier: NotRequired[str | None]
     receipt: NotRequired[ReceiptData | None]
-    created_at: NotRequired[str]
+    created_at: str
 
 
 class GroupRow(TypedDict):
@@ -99,7 +99,7 @@ class SplizyUserInsert(TypedDict):
 class ExpenseInsert(TypedDict):
     group_id: GroupId
     title: str
-    amount: str
+    amount: float
     paid_by: str
     currency: CurrencyCode
     is_equal_split: bool
@@ -111,7 +111,7 @@ class ExpenseInsert(TypedDict):
 class ExpenseUpdate(TypedDict, total=False):
     group_id: GroupId
     title: str
-    amount: str
+    amount: float
     paid_by: str
     currency: CurrencyCode
     is_equal_split: bool
