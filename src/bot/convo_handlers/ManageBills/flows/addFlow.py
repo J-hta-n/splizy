@@ -276,13 +276,13 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
+        # If editing, just go back to expense view
+        if "expenses" in context.user_data:
+            await send_expense_view(update, context)
+            return ManageBillStates.EDIT_OR_GO_BACK
         # If not editing, end convo
-        if "expenses" not in context.user_data:
-            await query.edit_message_text("Operation cancelled.")
-            return ConversationHandler.END
-        # If editing, go back to expense view
-        await send_expense_view(update, context)
-        return ManageBillStates.EDIT_OR_GO_BACK
+        await query.edit_message_text("Operation cancelled.")
+        return ConversationHandler.END
 
     elif action == "submit_form":
         data = context.user_data
@@ -310,7 +310,21 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 supabase.table("expenses").update(entry).eq(
                     "id", data["expense_id"]
                 ).execute()
-                # Then return to expense view
+                # Older Supabase Python clients do not support select() chained
+                # after update(); fetch the updated row in a separate query.
+                updated = (
+                    supabase.table("expenses")
+                    .select("*")
+                    .eq("id", data["expense_id"])
+                    .execute()
+                )
+                if not updated.data:
+                    raise ValueError(
+                        f"Updated expense not found for id={data['expense_id']}"
+                    )
+                # Then update the context and return to expense view
+                index = context.user_data["expense_index"]
+                context.user_data["expenses"][index] = updated.data[0]
                 await send_expense_view(
                     update, context, "(Expense updated successfully)"
                 )

@@ -21,8 +21,8 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
-import { Receipt } from "@src/app/api/receipts/schema";
 import { formatMoney } from "@/lib/utils";
+import { Receipt } from "../api/expenses/schema";
 
 const COMMON_CURRENCY_CODES: Record<string, string> = {
   SGD: "Singapore Dollar",
