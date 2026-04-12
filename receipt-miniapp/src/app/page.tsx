@@ -32,7 +32,7 @@ import {
   normaliseSharedItems,
 } from "@/lib/utils";
 import { ItemSummary, UserIndivSplit } from "@/lib/types";
-import { PostExpenseSchema, Receipt } from "./api/expenses/schema";
+import { Expense, PostExpenseSchema, Receipt } from "./api/expenses/schema";
 import { getPayeesFromReceipt } from "@/lib/db/utils";
 
 const blankReceipt: Receipt = {
@@ -89,25 +89,48 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(
-          expenseId
-            ? `/api/expenses?expense_id=${encodeURIComponent(expenseId)}`
-            : `/api/expenses/tempReceipt?group_id=${encodeURIComponent(groupId)}`,
-        );
-        if (!response.ok) {
-          const body = await response.json();
-          throw new Error(body.error || "Failed to load receipt row");
+        let receipt: Receipt;
+        let users: string[];
+        let expenseTitle: string;
+        let paidBy: string;
+        if (expenseId) {
+          const response = await fetch(
+            `/api/expenses/${encodeURIComponent(expenseId)}`,
+          );
+          if (!response.ok) {
+            const body = await response.json();
+            throw new Error(
+              body.error || "Failed to fetch receipt expense for editing",
+            );
+          }
+
+          const data: Expense = await response.json();
+          receipt = data.receipt;
+          users = data.payees.map((payee) => payee.user);
+          expenseTitle = data.title;
+          paidBy = data.paid_by;
+        } else {
+          const response = await fetch(
+            `/api/expenses/tempReceipt?group_id=${encodeURIComponent(groupId)}`,
+          );
+          if (!response.ok) {
+            const body = await response.json();
+            throw new Error(
+              body.error || "Failed to fetch new receipt for adding expense",
+            );
+          }
+
+          const data: TempReceiptRow = await response.json();
+          receipt = data.last_receipt.receipt;
+          users = data.last_receipt.users;
+          expenseTitle = data.title ?? "";
+          paidBy = data.paid_by ?? users[0] ?? "";
         }
 
-        const data: TempReceiptRow = await response.json();
-        const loadedReceipt = data.last_receipt?.receipt ?? blankReceipt;
-        setReceipt(loadedReceipt);
-
-        const users = data.last_receipt?.users ?? [];
-
+        setReceipt(receipt);
         setUsers(users);
-        setExpenseTitle(data.title ?? "");
-        setPaidBy(data.paid_by ?? users[0] ?? "");
+        setExpenseTitle(expenseTitle);
+        setPaidBy(paidBy);
         if (users.length > 0) {
           setSelectedUserStep2(users[0]);
         }
