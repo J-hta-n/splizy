@@ -10,27 +10,14 @@ from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_expense_view,
 )
 from src.bot.convo_utils.wrappers import group_only
-from src.lib.splizy_repo.database import supabase
+from src.lib.splizy_repo.repo import repo
 
 
 @group_only
 async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     group_id = update.message.chat.id
-    expenses = (
-        supabase.table("expenses")
-        .select("*")
-        .eq("group_id", group_id)
-        .order("created_at", desc=True)
-        .execute()
-        .data
-    )
-    users = (
-        supabase.table("splizy_users")
-        .select("username")
-        .eq("group_id", group_id)
-        .execute()
-        .data
-    )
+    expenses = repo.list_expenses(group_id)
+    users = repo.list_group_users(group_id)
     if not expenses:
         await update.message.reply_text("No expenses logged yet.")
         return ConversationHandler.END

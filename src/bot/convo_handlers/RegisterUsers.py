@@ -9,7 +9,7 @@ from telegram.ext import (
 
 from src.bot.convo_handlers.Base import BaseConversation
 from src.bot.convo_utils.wrappers import group_only
-from src.lib.splizy_repo.database import supabase
+from src.lib.splizy_repo.repo import repo
 
 
 class RegisterUsers(BaseConversation):
@@ -30,16 +30,10 @@ class RegisterUsers(BaseConversation):
 async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Register group chat id if not already registered
     group_id = update.message.chat.id
-    supabase.table("groups").upsert({"id": group_id}).execute()
+    repo.ensure_group({"id": group_id})
 
     msg = "Please enter a list of user telegram handles separated by a space, eg `@user1 @user2 @user3`"
-    cur_users = (
-        supabase.table("splizy_users")
-        .select("*")
-        .eq("group_id", group_id)
-        .execute()
-        .data
-    )
+    cur_users = repo.list_group_users(group_id)
     if cur_users:
         usernames = [f"@{user['username']}" for user in cur_users]
         msg += f"\n\nNote: the following users ({', '.join(usernames)}) are already registered and will not be overwritten."
@@ -65,24 +59,18 @@ async def register_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return RegisterUsers.REGISTER_USERS
 
     # Only add users that are not already registered
-    existing_users = (
-        supabase.table("splizy_users")
-        .select("*")
-        .eq("group_id", update.message.chat.id)
-        .execute()
-        .data
-    )
+    existing_users = repo.list_group_users(update.message.chat.id)
     existing_usernames = set([user["username"] for user in existing_users])
     new_usernames = [
         username for username in usernames if username not in existing_usernames
     ]
     if new_usernames:
-        supabase.table("splizy_users").insert(
+        repo.insert_group_users(
             [
                 {"group_id": update.message.chat.id, "username": username}
                 for username in new_usernames
             ]
-        ).execute()
+        )
         msg = f"Registered the new users: @{', @'.join(new_usernames)}"
     else:
         msg = f"All users are already registered: @{', @'.join(usernames)}"

@@ -130,15 +130,5 @@ class SplizyRepo:
         ).execute()
         return self.get_temp_receipt(temp_receipt_id)
 
-    def upsert_latest_temp_receipt(
-        self, group_id: GroupId, payload: TempReceiptInsert | TempReceiptUpdate
-    ) -> TempReceiptRow | None:
-        existing = self.get_latest_temp_receipt(group_id)
-        if existing is None:
-            return self.create_temp_receipt(cast(TempReceiptInsert, payload))
-        return self.update_temp_receipt(
-            existing["id"], cast(TempReceiptUpdate, payload)
-        )
-
 
 repo = SplizyRepo()

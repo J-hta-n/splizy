@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src.lib.splizy_repo.database import supabase
+from src.lib.splizy_repo.repo import repo
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -19,14 +19,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Register group chat id if not already registered
     group_id = update.message.chat.id
-    supabase.table("groups").upsert({"id": group_id}).execute()
-    cur_users = (
-        supabase.table("splizy_users")
-        .select("*")
-        .eq("group_id", group_id)
-        .execute()
-        .data
-    )
+    repo.ensure_group({"id": group_id})
+    cur_users = repo.list_group_users(group_id)
     msg = (
         "Hello there! I help make splitting bills easier for you all with the convenience of telegram groups.\n\n"
         + "To get started, register all group members' telegram handles with /register, and refer "

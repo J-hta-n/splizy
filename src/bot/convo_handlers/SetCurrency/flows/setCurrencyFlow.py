@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from src.bot.convo_handlers.SetCurrency.states import SetCurrencyStates
 from src.bot.convo_handlers.SetCurrency.utils.renderers import send_select_currency
 from src.bot.convo_utils.wrappers import group_only
-from src.lib.splizy_repo.database import supabase
+from src.lib.splizy_repo.repo import repo
 
 
 @group_only
@@ -23,9 +23,7 @@ async def set_expense_currency(
     currency = query.data
 
     group_id = query.message.chat.id
-    supabase.table("groups").update({"expense_currency": currency}).eq(
-        "id", group_id
-    ).execute()
+    repo.update_group(group_id, {"expense_currency": currency})
 
     await update.callback_query.edit_message_text(
         f"Expense currency set to {currency}."
@@ -49,9 +47,7 @@ async def set_settleup_currency(
     currency = query.data
 
     group_id = query.message.chat.id
-    supabase.table("groups").update({"settleup_currency": currency}).eq(
-        "id", group_id
-    ).execute()
+    repo.update_group(group_id, {"settleup_currency": currency})
 
     await update.callback_query.edit_message_text(
         f"Settleup currency set to {currency}."
