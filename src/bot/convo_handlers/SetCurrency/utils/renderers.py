@@ -1,6 +1,6 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 
-from src.bot.convo_utils.currencies import COMMON_CURRENCY_CODES
+from src.lib.currencies.config import COMMON_CURRENCY_CODES
 
 
 async def send_select_currency(update: Update, text: str):

@@ -5,6 +5,7 @@ from src.bot.convo_handlers.Base import BaseCommands
 from src.bot.convo_handlers.ManageBills import ManageBills
 from src.bot.convo_handlers.RegisterUsers import RegisterUsers
 from src.bot.convo_handlers.SetCurrency import SetCurrency
+from src.bot.convo_handlers.Settleup import Settleup
 
 
 def initialise_telebot():
@@ -14,6 +15,7 @@ def initialise_telebot():
         ManageBills(),
         RegisterUsers(),
         SetCurrency(),
+        Settleup(),
     ]
     for convo in conversations:
         app.add_handler(convo.get_convo_handler())
