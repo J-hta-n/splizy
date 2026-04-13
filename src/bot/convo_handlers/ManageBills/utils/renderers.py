@@ -88,15 +88,23 @@ async def send_confirmation_form(
         await update.callback_query.edit_message_text(summary, reply_markup=markup)
 
 
-async def send_select_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def send_select_user(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, new_msg=True
+):
     keyboard = []
     for username in context.user_data["all_participants"]:
         keyboard.append([InlineKeyboardButton(username, callback_data=username)])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        f"Who paid for this expense of {context.user_data['currency']} {context.user_data['amount']}?",
-        reply_markup=reply_markup,
-    )
+    if new_msg:
+        await update.message.reply_text(
+            f"Who paid for this expense of {context.user_data['currency']} {context.user_data['amount']}?",
+            reply_markup=reply_markup,
+        )
+    else:
+        await update.callback_query.edit_message_text(
+            f"Who paid for this expense of {context.user_data['currency']} {context.user_data['amount']}?",
+            reply_markup=reply_markup,
+        )
 
 
 async def send_multiselect_users(

@@ -78,7 +78,7 @@ async def expense_paid_by(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data["paid_by"] = paid_by
 
     if "edit_field" in context.user_data:
-        await send_confirmation_form(update, context)
+        await send_confirmation_form(update, context, False)
         return ManageBillStates.EXPENSE_CONFIRM
 
     keyboard = [
@@ -234,9 +234,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             )
             return ManageBillStates.EXPENSE_AMOUNT
     elif action == "edit_payer":
-        await query.edit_message_text(
-            "Please enter the telegram handle of the new payer, eg `@user1`"
-        )
+        await send_select_user(update, context, new_msg=False)
         return ManageBillStates.EXPENSE_PAID_BY
     elif action == "edit_split":
         # Ask how to split the expense
