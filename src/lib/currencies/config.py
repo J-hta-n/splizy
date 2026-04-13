@@ -19,9 +19,21 @@ COMMON_CURRENCY_CODES = {
     "EUR": "Euro",
 }
 
-COMMON_CURRENCY_CODES_STRING = "\n".join(
-    f"{code} ({name})" for code, name in COMMON_CURRENCY_CODES.items()
-)
+CURRENCY_SHORTHAND_MAPPING = {
+    "SGD": "S$",
+    "MYR": "RM",
+    "AUD": "A$",
+    "THB": "฿",
+    "VND": "₫",
+    "IDR": "Rp",
+    "CNY": "¥",
+    "KRW": "₩",
+    "JPY": "¥",
+    "INR": "₹",
+    "GBP": "£",
+    "USD": "$",
+    "EUR": "€",
+}
 
 EXCHANGE_RATES_PUBLIC_ENDPOINT = "https://api.fxratesapi.com/latest"
 EXCHANGE_RATES_BASE = "SGD"

@@ -62,7 +62,7 @@ def convert(amount: float, src_currency: str, dst_currency: str) -> float:
     src = src_currency.upper()
     dst = dst_currency.upper()
     if src == dst:
-        return round(float(amount), 3)
+        return amount
 
     data = read_cached_exchange_rates()
     if data is None:
@@ -75,11 +75,13 @@ def convert(amount: float, src_currency: str, dst_currency: str) -> float:
     src_rate = rates.get(src)
     dst_rate = rates.get(dst)
     if not isinstance(src_rate, (int, float)) or not isinstance(dst_rate, (int, float)):
-        logger.warning(
-            "Missing exchange rate for %s or %s. Returning original amount.", src, dst
-        )
-        return round(float(amount), 3)
+        logger.error("Missing exchange rate for %s or %s.", src, dst)
+        raise RuntimeError(f"Missing exchange rate for {src} or {dst}")
+
+    if src_rate <= 0 or dst_rate <= 0:
+        logger.error("Invalid non-positive exchange rate for %s or %s.", src, dst)
+        raise RuntimeError(f"Invalid exchange rate for {src} or {dst}")
 
     # API rates are quoted against USD; convert src->USD->dst.
     converted = (float(amount) / float(src_rate)) * float(dst_rate)
-    return round(converted, 3)
+    return converted
