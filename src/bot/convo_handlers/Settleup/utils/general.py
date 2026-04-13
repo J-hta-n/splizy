@@ -37,9 +37,9 @@ def _get_suggested_payments_str(payments: Payments, settleup_currency) -> str:
     return "\n".join(res)
 
 
-def get_suggested_payments(
+def get_settleup_details(
     all_expenses: list[ExpenseRow], settleup_currency: str
-) -> tuple[SettleupStats, str]:
+) -> tuple[SettleupStats, Payments]:
     # Populate payer and payee maps
     payer_amounts = defaultdict(float)
     payee_amounts = defaultdict(float)
@@ -104,5 +104,13 @@ def get_suggested_payments(
             transfer_by_user[sender] -= amount
             transfer_by_user[receiver] += amount
     stats["transfers"] = dict(transfer_by_user)
+
+    return (stats, payments)
+
+
+def get_suggested_payments(
+    all_expenses: list[ExpenseRow], settleup_currency: str
+) -> tuple[SettleupStats, str]:
+    stats, payments = get_settleup_details(all_expenses, settleup_currency)
 
     return (stats, _get_suggested_payments_str(payments, settleup_currency))
