@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import TypeAlias, TypedDict
 
 from src.lib.currencies.config import CURRENCY_SHORTHAND_MAPPING
-from src.lib.currencies.utils import convert
+from src.lib.currencies.utils import build_exchange_rate_summary, convert
 from src.lib.splizy_repo.model import CurrencyCode, ExpenseRow
 
 AMOUNT_CUTOFF = 0.01
@@ -27,14 +27,14 @@ def _get_suggested_payments_str(payments: Payments, settleup_currency) -> str:
         transfers = sorted(payments[from_user], key=lambda x: x[0].lower())
         res.append(
             f"@{from_user} pays "
-            + " and ".join(
+            + "\nand ".join(
                 [
                     f"@{to_user} {shorthand_currency}{amount:.2f}"
                     for (to_user, amount) in transfers
                 ]
             )
         )
-    return "\n".join(res)
+    return res[0] + "\n" + "\n\n".join(res[1:])
 
 
 def get_settleup_details(
@@ -114,3 +114,8 @@ def get_suggested_payments(
     stats, payments = get_settleup_details(all_expenses, settleup_currency)
 
     return (stats, _get_suggested_payments_str(payments, settleup_currency))
+
+
+def build_sgd_exchange_rate_summary(all_expenses: list[ExpenseRow]) -> str:
+    involved_currencies = [expense["currency"] for expense in all_expenses]
+    return build_exchange_rate_summary(involved_currencies, "SGD")

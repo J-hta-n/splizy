@@ -1,6 +1,6 @@
 from typing import TypeVar
 
-from src.lib.currencies.config import COMMON_CURRENCY_CODES
+from src.lib.currencies.config import ALL_CURRENCY_CODES
 
 T = TypeVar("T")
 ParsedResult = tuple[bool, T | str]
@@ -8,11 +8,11 @@ ParsedResult = tuple[bool, T | str]
 
 def parse_currency(input: str) -> ParsedResult[str]:
     try:
-        currency = input.upper()
-        if currency not in COMMON_CURRENCY_CODES:
+        currency = input.strip().upper()
+        if currency not in ALL_CURRENCY_CODES:
             return (
                 False,
-                f"Invalid currency code. Please refer to the list of supported currency codes.",
+                "currency code may be out of scope",
             )
         return True, currency
     except ValueError:

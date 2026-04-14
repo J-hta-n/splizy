@@ -16,6 +16,11 @@ logger = get_logger(__name__)
 
 
 def refresh_exchange_rates_if_stale() -> ExchangeRatesApiResponse | None:
+    """
+    Refresh exchange rates from API if cache is stale.
+    On API failure, returns cached data (even if stale) instead of None.
+    This ensures the flow continues even if the API is temporarily unavailable.
+    """
     cached_payload = read_cached_exchange_rates()
     if cached_payload is not None and not is_cache_stale(cached_payload):
         return cached_payload  # type: ignore[return-value]
@@ -28,14 +33,24 @@ def refresh_exchange_rates_if_stale() -> ExchangeRatesApiResponse | None:
             payload = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
         logger.warning(
-            "Unable to refresh exchange rates. Check the fx endpoint/key configuration."
+            "Unable to refresh exchange rates from API. Using cached data if available."
         )
+        # Fall back to cached data (even if stale) instead of returning None
+        if cached_payload is not None:
+            logger.warning(
+                "Rates may be outdated. Set MANUAL_EXCHANGE_RATES to override specific rates."
+            )
+            return cached_payload  # type: ignore[return-value]
         return None
 
     if not isinstance(payload, dict) or not payload.get("success"):
         logger.warning(
             "Exchange rates API responded without success. Check endpoint compatibility."
         )
+        # Fall back to cached data (even if stale) instead of returning None
+        if cached_payload is not None:
+            logger.warning("Using outdated cached rates.")
+            return cached_payload  # type: ignore[return-value]
         return None
 
     try:
