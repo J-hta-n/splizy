@@ -2,7 +2,11 @@ import json
 from datetime import datetime, timezone
 from typing import Iterable, TypeGuard
 
-from src.lib.currencies.config import EXCHANGE_RATES_FILE_PATH, EXCHANGE_RATES_MAX_AGE
+from src.lib.currencies.config import (
+    EXCHANGE_RATES_FILE_PATH,
+    EXCHANGE_RATES_MAX_AGE,
+    MANUAL_EXCHANGE_RATE_OVERRIDES,
+)
 from src.lib.currencies.model import ExchangeRatesApiResponse
 from src.lib.logger import get_logger
 
@@ -67,7 +71,11 @@ def get_exchange_rates_as_of_date() -> str:
     if fetched_at is None:
         return "unavailable"
 
-    return fetched_at.strftime("%-d %b")
+    date_str = fetched_at.strftime("%-d %b")
+    # Append note if manual overrides are active
+    if MANUAL_EXCHANGE_RATE_OVERRIDES:
+        date_str += " (manual overrides applied)"
+    return date_str
 
 
 def convert(amount: float, src_currency: str, dst_currency: str) -> float:
@@ -84,8 +92,11 @@ def convert(amount: float, src_currency: str, dst_currency: str) -> float:
         raise RuntimeError("Exchange rates cache unavailable")
 
     rates = data["rates"]
-    src_rate = rates.get(src)
-    dst_rate = rates.get(dst)
+
+    # Check for manual overrides first, then fall back to cached rates
+    src_rate = MANUAL_EXCHANGE_RATE_OVERRIDES.get(src) or rates.get(src)
+    dst_rate = MANUAL_EXCHANGE_RATE_OVERRIDES.get(dst) or rates.get(dst)
+
     if not isinstance(src_rate, (int, float)) or not isinstance(dst_rate, (int, float)):
         logger.error("Missing exchange rate for %s or %s.", src, dst)
         raise RuntimeError(f"Missing exchange rate for {src} or {dst}")

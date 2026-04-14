@@ -65,6 +65,33 @@ def _read_telegram_top_currency_codes() -> list[str]:
 
 TELEGRAM_TOP_CURRENCY_CODES = _read_telegram_top_currency_codes()
 
+
+def _read_manual_exchange_rates() -> dict[str, float]:
+    """
+    Parse MANUAL_EXCHANGE_RATES env var to allow manually overriding specific rates
+    with base currency set to SGD.
+    Expected format: JSON dict, e.g. {"MYR": 3.12, "EUR": 0.67}
+    Returns empty dict if env var not set or invalid.
+    """
+    raw = os.environ.get("MANUAL_EXCHANGE_RATES", "").strip()
+    if not raw:
+        return {}
+
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return {}
+        result = {}
+        for code, rate in data.items():
+            if isinstance(code, str) and isinstance(rate, (int, float)) and rate > 0:
+                result[code.upper()] = float(rate)
+        return result
+    except (json.JSONDecodeError, ValueError):
+        return {}
+
+
+MANUAL_EXCHANGE_RATE_OVERRIDES = _read_manual_exchange_rates()
+
 KNOWN_CURRENCY_DESCRIPTIONS = {
     "SGD": "Singapore Dollar",
     "MYR": "Malaysian Ringgit",
