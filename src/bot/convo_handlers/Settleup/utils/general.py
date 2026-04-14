@@ -34,7 +34,7 @@ def _get_suggested_payments_str(payments: Payments, settleup_currency) -> str:
                 ]
             )
         )
-    return "\n".join(res)
+    return res[0] + "\n" + "\n\n".join(res[1:])
 
 
 def get_settleup_details(

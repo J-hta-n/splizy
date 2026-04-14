@@ -8,7 +8,7 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.Settleup.utils.general import get_settleup_details
-from src.lib.currencies.config import COMMON_CURRENCY_CODES, CURRENCY_SHORTHAND_MAPPING
+from src.lib.currencies.config import ALL_CURRENCY_CODES, CURRENCY_SHORTHAND_MAPPING
 from src.lib.currencies.utils import convert, read_cached_exchange_rates
 from src.lib.splizy_repo.model import ExpenseRow
 
@@ -67,7 +67,7 @@ def _build_metadata_lines(
 ) -> list[str]:
     settle_currency = settleup_currency.upper()
     settle_shorthand = CURRENCY_SHORTHAND_MAPPING.get(settle_currency, settle_currency)
-    settle_desc = COMMON_CURRENCY_CODES.get(settle_currency, settle_currency)
+    settle_desc = ALL_CURRENCY_CODES.get(settle_currency, settle_currency)
 
     lines = [
         f"All amounts are in {settle_currency}, {settle_shorthand} ({settle_desc}).",
