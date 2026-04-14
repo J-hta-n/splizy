@@ -2,6 +2,7 @@ from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, 
 from telegram.ext import ContextTypes
 
 from src.lib.currencies.config import ALL_CURRENCY_CODES, COMMON_CURRENCY_CODES
+from src.lib.currencies.utils import build_exchange_rate_line
 from src.lib.splizy_repo.model import GroupRow
 
 
@@ -12,11 +13,13 @@ def _build_current_currencies_payload(
     settleup_currency = (group.get("settleup_currency") or "SGD").upper()
     expense_desc = ALL_CURRENCY_CODES.get(expense_currency, expense_currency)
     settleup_desc = ALL_CURRENCY_CODES.get(settleup_currency, settleup_currency)
+    rate_line = build_exchange_rate_line(settleup_currency, expense_currency)
 
     text = (
         "Please configure the default currencies for bill expenses, and when settling up.\n\n"
         f"Expenses: {expense_currency} ({expense_desc})\n"
-        f"Settleup: {settleup_currency} ({settleup_desc})"
+        f"Settleup: {settleup_currency} ({settleup_desc})\n\n"
+        f"{rate_line}"
     )
 
     keyboard = [

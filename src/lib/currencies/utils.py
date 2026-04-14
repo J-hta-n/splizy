@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from typing import TypeGuard
+from typing import Iterable, TypeGuard
 
 from src.lib.currencies.config import EXCHANGE_RATES_FILE_PATH, EXCHANGE_RATES_MAX_AGE
 from src.lib.currencies.model import ExchangeRatesApiResponse
@@ -58,6 +58,18 @@ def read_cached_exchange_rates() -> ExchangeRatesApiResponse | None:
     return None
 
 
+def get_exchange_rates_as_of_date() -> str:
+    payload = read_cached_exchange_rates()
+    if payload is None:
+        return "unavailable"
+
+    fetched_at = _parse_iso_datetime(str(payload.get("date", "")))
+    if fetched_at is None:
+        return "unavailable"
+
+    return fetched_at.strftime("%-d %b")
+
+
 def convert(amount: float, src_currency: str, dst_currency: str) -> float:
     src = src_currency.upper()
     dst = dst_currency.upper()
@@ -85,3 +97,42 @@ def convert(amount: float, src_currency: str, dst_currency: str) -> float:
     # API rates are quoted against USD; convert src->USD->dst.
     converted = (float(amount) / float(src_rate)) * float(dst_rate)
     return converted
+
+
+def build_exchange_rate_line(src_currency: str, dst_currency: str) -> str:
+    src = src_currency.upper()
+    dst = dst_currency.upper()
+    as_of_date = get_exchange_rates_as_of_date()
+
+    if src == dst:
+        return f"1 {src} = 1 {dst} (as of {as_of_date})"
+
+    try:
+        rate = convert(1.0, src, dst)
+        return f"1 {src} = {rate:.2f} {dst} (as of {as_of_date})"
+    except RuntimeError:
+        return f"Exchange rate unavailable for {src}/{dst} (as of {as_of_date})"
+
+
+def build_exchange_rate_summary(
+    src_currencies: Iterable[str], dst_currency: str
+) -> str:
+    dst = dst_currency.upper()
+    as_of_date = get_exchange_rates_as_of_date()
+    unique_currencies = sorted(
+        {currency.upper() for currency in src_currencies if currency.upper() != dst}
+    )
+    lines = [f"Exchange rates from {dst} as of {as_of_date}:"]
+
+    if not unique_currencies:
+        lines.append(f"All expenses already in {dst}.")
+        return "\n".join(lines)
+
+    for src in unique_currencies:
+        try:
+            rate = convert(1.0, dst, src)
+            lines.append(f"1 {dst} = {rate:.2f} {src}")
+        except RuntimeError:
+            lines.append(f"1 {dst} = unavailable {src}")
+
+    return "\n".join(lines)
