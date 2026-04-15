@@ -19,12 +19,10 @@ async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     data = get_managebills_user_data(context)
     group_id = update.message.chat.id
     expenses = repo.list_expenses(group_id)
-    users = repo.list_group_users(group_id)
     if not expenses:
         await update.message.reply_text("No expenses logged yet.")
         return ConversationHandler.END
     data["expenses"] = expenses
-    data["all_participants"] = [user["username"] for user in users]
 
     await send_all_expenses(update, context)
     return ManageBillStates.VIEW_EXPENSE

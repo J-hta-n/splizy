@@ -372,13 +372,43 @@ async def confirm_manual_delete_users(
         )
         return RegisterUsers.DELETE_USERS
 
-    repo.delete_group_users(group_id, selected)
+    expenses = repo.list_expenses(group_id)
+    locked_users: set[str] = set()
+    for expense in expenses:
+        paid_by = expense.get("paid_by")
+        if paid_by:
+            locked_users.add(str(paid_by))
+
+        for payee in expense.get("payees") or []:
+            payee_user = payee.get("user")
+            if payee_user:
+                locked_users.add(str(payee_user))
+
+    blocked = sorted([username for username in selected if username in locked_users])
+    allowed = sorted(
+        [username for username in selected if username not in locked_users]
+    )
+
+    if allowed:
+        repo.delete_group_users(group_id, allowed)
 
     context.user_data.pop("manual_delete_group_id", None)
     context.user_data.pop("manual_delete_usernames", None)
     context.user_data.pop("manual_delete_selected", None)
 
-    await query.edit_message_text(f"Deleted: @{', @'.join(selected)}")
+    messages: list[str] = []
+    if allowed:
+        messages.append(f"Deleted: @{', @'.join(allowed)}")
+    if blocked:
+        messages.append(
+            "Could not delete these users because they are involved in existing expenses "
+            "(as payer or payee): "
+            f"@{', @'.join(blocked)}"
+        )
+    if not messages:
+        messages.append("No users were deleted.")
+
+    await query.edit_message_text("\n".join(messages))
     return ConversationHandler.END
 
 
@@ -450,14 +480,41 @@ async def register_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             [{"group_id": group_id, "username": username} for username in new_usernames]
         )
 
+    blocked_delete_usernames: list[str] = []
+    allowed_delete_usernames: list[str] = []
     if delete_usernames:
-        repo.delete_group_users(group_id, delete_usernames)
+        expenses = repo.list_expenses(group_id)
+        locked_users: set[str] = set()
+        for expense in expenses:
+            paid_by = expense.get("paid_by")
+            if paid_by:
+                locked_users.add(str(paid_by))
+
+            for payee in expense.get("payees") or []:
+                payee_user = payee.get("user")
+                if payee_user:
+                    locked_users.add(str(payee_user))
+
+        blocked_delete_usernames = sorted(
+            [username for username in delete_usernames if username in locked_users]
+        )
+        allowed_delete_usernames = sorted(
+            [username for username in delete_usernames if username not in locked_users]
+        )
+
+        if allowed_delete_usernames:
+            repo.delete_group_users(group_id, allowed_delete_usernames)
 
     messages: list[str] = []
     if new_usernames:
         messages.append(f"Added: @{', @'.join(new_usernames)}")
-    if delete_usernames:
-        messages.append(f"Deleted: @{', @'.join(delete_usernames)}")
+    if allowed_delete_usernames:
+        messages.append(f"Deleted: @{', @'.join(allowed_delete_usernames)}")
+    if blocked_delete_usernames:
+        messages.append(
+            "Skipped (involved in existing expenses as payer/payee): "
+            f"@{', @'.join(blocked_delete_usernames)}"
+        )
 
     if not messages:
         messages.append("No changes made. Users may already be in the requested state.")
