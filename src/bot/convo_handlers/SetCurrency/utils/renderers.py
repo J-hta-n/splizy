@@ -1,6 +1,12 @@
 from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
+from src.bot.convo_handlers.SetCurrency.callbacks import (
+    CURRENCY_BACK,
+    EDIT_EXPENSE_CURRENCY,
+    EDIT_SETTLEUP_CURRENCY,
+)
+from src.bot.convo_handlers.SetCurrency.context import get_setcurrency_user_data
 from src.lib.currencies.config import ALL_CURRENCY_CODES, COMMON_CURRENCY_CODES
 from src.lib.currencies.utils import build_exchange_rate_line
 from src.lib.splizy_repo.model import GroupRow
@@ -25,26 +31,35 @@ def _build_current_currencies_payload(
     keyboard = [
         [
             InlineKeyboardButton(
-                "Edit expenses currency", callback_data="edit_expense_currency"
+                "Edit expenses currency", callback_data=EDIT_EXPENSE_CURRENCY
             )
         ],
         [
             InlineKeyboardButton(
-                "Edit settleup currency", callback_data="edit_settleup_currency"
+                "Edit settleup currency", callback_data=EDIT_SETTLEUP_CURRENCY
             ),
         ],
     ]
     return text, InlineKeyboardMarkup(keyboard)
 
 
-async def send_current_currencies(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    group: GroupRow = context.user_data["group"]
+async def send_current_currencies(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, remarks=None
+):
+    data = get_setcurrency_user_data(context)
+    group: GroupRow = data["group"]
     text, reply_markup = _build_current_currencies_payload(group)
+    if remarks:
+        text = f"({remarks})\n\n" + text
     await update.message.reply_text(text, reply_markup=reply_markup)
 
 
-async def send_current_currencies_for_query(query: CallbackQuery, group: GroupRow):
+async def send_current_currencies_for_query(
+    query: CallbackQuery, group: GroupRow, remarks=None
+):
     text, reply_markup = _build_current_currencies_payload(group)
+    if remarks:
+        text = f"({remarks})\n\n" + text
     await query.edit_message_text(text, reply_markup=reply_markup)
 
 
@@ -67,6 +82,6 @@ async def send_select_currency(query: CallbackQuery, text: str, target_field: st
             )
         ]
     )
-    keyboard.append([InlineKeyboardButton("Go back", callback_data="currency_back")])
+    keyboard.append([InlineKeyboardButton("Go back", callback_data=CURRENCY_BACK)])
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(text, reply_markup=reply_markup)

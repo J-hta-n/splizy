@@ -5,6 +5,13 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from config import MINIAPP_URL
+from src.bot.convo_handlers.ManageBills.callbacks import (
+    DELETE_EXPENSE,
+    EDIT_EXPENSE,
+    GO_BACK,
+    HIDE_RECEIPT,
+    SHOW_RECEIPT,
+)
 from src.bot.convo_handlers.ManageBills.utils.general import (
     get_bill_summary,
     get_bill_summary_with_receipt,
@@ -261,15 +268,15 @@ async def send_expense_view(
     text = summary if not remarks else f"{summary}\n{remarks}"
     keyboard = [
         [
-            InlineKeyboardButton("Edit", callback_data="edit_expense"),
-            InlineKeyboardButton("Delete", callback_data="delete_expense"),
+            InlineKeyboardButton("Edit", callback_data=EDIT_EXPENSE),
+            InlineKeyboardButton("Delete", callback_data=DELETE_EXPENSE),
         ]
     ]
     if has_receipt:
         keyboard.append(
-            [InlineKeyboardButton("Show receipt details", callback_data="show_receipt")]
+            [InlineKeyboardButton("Show receipt details", callback_data=SHOW_RECEIPT)]
         )
-    keyboard.append([InlineKeyboardButton("Go back", callback_data="go_back")])
+    keyboard.append([InlineKeyboardButton("Go back", callback_data=GO_BACK)])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
@@ -286,11 +293,11 @@ async def send_expense_with_receipt_view(
 
     keyboard = [
         [
-            InlineKeyboardButton("Edit", callback_data="edit_expense"),
-            InlineKeyboardButton("Delete", callback_data="delete_expense"),
+            InlineKeyboardButton("Edit", callback_data=EDIT_EXPENSE),
+            InlineKeyboardButton("Delete", callback_data=DELETE_EXPENSE),
         ],
-        [InlineKeyboardButton("Hide receipt details", callback_data="hide_receipt")],
-        [InlineKeyboardButton("Go back", callback_data="go_back")],
+        [InlineKeyboardButton("Hide receipt details", callback_data=HIDE_RECEIPT)],
+        [InlineKeyboardButton("Go back", callback_data=GO_BACK)],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text(first_text, reply_markup=reply_markup)

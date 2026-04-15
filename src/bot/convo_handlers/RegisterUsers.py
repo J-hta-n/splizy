@@ -14,6 +14,7 @@ from src.lib.splizy_repo.repo import repo
 
 class RegisterUsers(BaseConversation):
     REGISTER_USERS = 0
+    REGISTER_INPUT_PATTERN = r"^\s*@\w+(?:\s+@\w+)*\s*$"
 
     def setup_handlers(self):
         self.entry_points = [
@@ -21,7 +22,12 @@ class RegisterUsers(BaseConversation):
         ]
         self.states = {
             self.REGISTER_USERS: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, register_users)
+                MessageHandler(
+                    filters.Regex(self.REGISTER_INPUT_PATTERN)
+                    & filters.TEXT
+                    & ~filters.COMMAND,
+                    register_users,
+                )
             ],
         }
 
