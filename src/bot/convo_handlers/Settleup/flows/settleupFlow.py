@@ -22,10 +22,9 @@ async def settleup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     settleup_currency = repo.get_group(group_id).get("settleup_currency", "SGD")
     stats, suggested_payments = get_suggested_payments(all_expenses, settleup_currency)
     exchange_rates_summary = build_sgd_exchange_rate_summary(all_expenses)
+
     await update.message.reply_text(f"{exchange_rates_summary}\n\n{suggested_payments}")
     await send_stats_table(update, context, stats)
-    # await send_settleup_csv(update, context, all_expenses, settleup_currency)
-
     return ConversationHandler.END
 
 

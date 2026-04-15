@@ -12,8 +12,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         await update.message.reply_text(
             f"Hello {username}! I help make splitting bills easier for you and your friends with the convenience of telegram groups, "
             "so all of you can enjoy the group trip without worrying about the hassle of bill splits!\n\n"
-            "To get started, add me into a telegram group and activate it with /start, then register all participants' telegram handles "
-            "with /register, and you're all set!"
+            "To get started, add me into a telegram group and activate it with /start, then:\n"
+            "1. Make all participants admins\n"
+            "2. Run /register to auto-detect and register them\n"
+            "And you're all set!"
         )
         return ConversationHandler.END
 
@@ -23,7 +25,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     cur_users = repo.list_group_users(group_id)
     msg = (
         "Hello there! I help make splitting bills easier for you all with the convenience of telegram groups.\n\n"
-        + "To get started, register all group members' telegram handles with /register, and refer "
+        + "To get started, make all participants admins and then register them with /register, and refer "
         "to /help for the full list of available commands. Have a fun trip!"
         if not cur_users
         else f"The following users are already registered: {', '.join([f'@{user['username']}' for user in cur_users])}! Welcome back to Splizy!"
@@ -35,13 +37,14 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = (
         "📋 Here's what Splizy can do!\n\n"
-        "/register - Register the telegram handles of all participants\n"
+        "/register - Auto-register all group members (admin-based, immutable once set)\n"
+        "/register_manual - Manually enter telegram handles (legacy, for testing)\n"
         "/set_exp_currency - Set the default expense currency\n"
         "/set_final_currency - Set the currency for settlement\n"
         "/add - Add a new expense\n"
         "/add_receipt - Add expense from a receipt photo (coming soon)\n"
         "/view - View all expenses (Can edit and delete from here as well)\n"
-        "/settleup - Get settlement recommendations (coming soon)\n"
+        "/settleup - Get settlement recommendations\n"
     )
     await update.message.reply_text(message)
     return ConversationHandler.END

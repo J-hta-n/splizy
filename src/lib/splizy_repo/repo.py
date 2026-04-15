@@ -58,6 +58,13 @@ class SplizyRepo:
         response = supabase.table("splizy_users").insert(payload).execute()
         return cast(list[SplizyUserRow], response.data or [])
 
+    def delete_group_users(self, group_id: GroupId, usernames: list[str]) -> None:
+        if not usernames:
+            return
+        supabase.table("splizy_users").delete().eq("group_id", group_id).in_(
+            "username", usernames
+        ).execute()
+
     def list_expenses(self, group_id: GroupId) -> list[ExpenseRow]:
         response = (
             supabase.table("expenses")

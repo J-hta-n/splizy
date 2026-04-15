@@ -24,7 +24,7 @@ class BaseConversation(ABC):
         self.entry_points = []
         self.states = {}
         self.fallbacks = base_command_handlers
-        self.conversation_timeout = 5
+        self.conversation_timeout = 10
 
     @abstractmethod
     def setup_handlers(self):
