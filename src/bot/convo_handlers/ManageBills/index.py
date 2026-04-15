@@ -1,6 +1,11 @@
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 from src.bot.convo_handlers.Base import BaseConversation
+from src.bot.convo_handlers.ManageBills.callbacks import (
+    DELETE_EXPENSE_PATTERN,
+    EDIT_OR_GO_BACK_PATTERN,
+    VIEW_EXPENSE_PATTERN,
+)
 from src.bot.convo_handlers.ManageBills.flows.addFlow import (
     add_command,
     expense_amount,
@@ -66,7 +71,16 @@ class ManageBills(BaseConversation):
                 MessageHandler(filters.TEXT & ~filters.COMMAND, expense_multiplier)
             ],
             States.EXPENSE_CONFIRM: [CallbackQueryHandler(expense_confirm)],
-            States.VIEW_EXPENSE: [CallbackQueryHandler(view_expense)],
-            States.EDIT_OR_GO_BACK: [CallbackQueryHandler(edit_or_go_back)],
-            States.DELETE_EXPENSE: [CallbackQueryHandler(delete_expense)],
+            States.VIEW_EXPENSE: [
+                CallbackQueryHandler(view_expense, pattern=VIEW_EXPENSE_PATTERN)
+            ],
+            States.EDIT_OR_GO_BACK: [
+                CallbackQueryHandler(
+                    edit_or_go_back,
+                    pattern=EDIT_OR_GO_BACK_PATTERN,
+                )
+            ],
+            States.DELETE_EXPENSE: [
+                CallbackQueryHandler(delete_expense, pattern=DELETE_EXPENSE_PATTERN)
+            ],
         }

@@ -109,7 +109,6 @@ class ExpenseInsert(TypedDict):
 
 
 class ExpenseUpdate(TypedDict, total=False):
-    group_id: GroupId
     title: str
     amount: float
     paid_by: str

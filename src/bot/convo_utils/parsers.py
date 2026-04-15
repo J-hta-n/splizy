@@ -12,7 +12,7 @@ def parse_currency(input: str) -> ParsedResult[str]:
         if currency not in ALL_CURRENCY_CODES:
             return (
                 False,
-                "currency code may be out of scope",
+                "Invalid currency code, please double check and try again.",
             )
         return True, currency
     except ValueError:

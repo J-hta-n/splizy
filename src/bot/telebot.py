@@ -9,7 +9,7 @@ from src.bot.convo_handlers.Settleup import Settleup
 
 
 def initialise_telebot():
-    app = ApplicationBuilder().token(TELEBOT_TOKEN).build()
+    app = ApplicationBuilder().token(TELEBOT_TOKEN).concurrent_updates(False).build()
     conversations = [
         BaseCommands(),
         ManageBills(),

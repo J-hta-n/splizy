@@ -58,6 +58,13 @@ class SplizyRepo:
         response = supabase.table("splizy_users").insert(payload).execute()
         return cast(list[SplizyUserRow], response.data or [])
 
+    def delete_group_users(self, group_id: GroupId, usernames: list[str]) -> None:
+        if not usernames:
+            return
+        supabase.table("splizy_users").delete().eq("group_id", group_id).in_(
+            "username", usernames
+        ).execute()
+
     def list_expenses(self, group_id: GroupId) -> list[ExpenseRow]:
         response = (
             supabase.table("expenses")
@@ -88,7 +95,10 @@ class SplizyRepo:
     def update_expense(
         self, expense_id: ExpenseId, payload: ExpenseUpdate
     ) -> ExpenseRow | None:
-        supabase.table("expenses").update(payload).eq("id", expense_id).execute()
+        safe_payload: ExpenseUpdate = {
+            key: value for key, value in payload.items() if key != "group_id"
+        }
+        supabase.table("expenses").update(safe_payload).eq("id", expense_id).execute()
         return self.get_expense(expense_id)
 
     def delete_expense(self, expense_id: ExpenseId) -> None:

@@ -150,29 +150,25 @@ def get_bill_summary_with_receipt(data):
 
 def populate_context_for_selected_expense_from_viewall(context, expense):
     payees = expense["payees"]
-    payeesMap = {entry["user"]: Decimal(str(entry["amount"])) for entry in payees}
+    payees_map = {entry["user"]: Decimal(str(entry["amount"])) for entry in payees}
+    participants = list(dict.fromkeys(entry["user"] for entry in payees))
+
+    context.user_data["all_participants"] = participants
     context.user_data["has_mult"] = expense.get("multiplier") is not None
     context.user_data["mult_val"] = expense.get("multiplier")
     if expense["is_equal_split"]:
-        context.user_data["split_type"] = (
-            "equal_some"
-            if len(payees) < len(context.user_data["all_participants"])
-            else "equal_all"
-        )
+        context.user_data["split_type"] = "equal_all"
     else:
         context.user_data["split_type"] = "custom"
     context.user_data["selected_participants"] = [
-        entry["user"]
-        for entry in payees
-        if entry["user"] in context.user_data["all_participants"]
+        entry["user"] for entry in payees if entry["user"] in participants
     ]
     context.user_data["participant_selections"] = [
         username in context.user_data["selected_participants"]
-        for username in context.user_data["all_participants"]
+        for username in participants
     ]
     context.user_data["custom_amounts"] = [
-        payeesMap.get(username, Decimal("0"))
-        for username in context.user_data["all_participants"]
+        payees_map.get(username, Decimal("0")) for username in participants
     ]
     context.user_data["expense_id"] = expense["id"]
     context.user_data["expense_name"] = expense["title"]

@@ -4,6 +4,7 @@ from typing import Any, Mapping, Sequence
 
 from src.lib.splizy_repo.model import (
     ExpenseRow,
+    ExpenseUpdate,
     GroupId,
     PayeeData,
     ReceiptData,
@@ -31,7 +32,10 @@ def save_expense(
     payload = build_expense_payload(group_id, data, payees)
     expense_id = data.get("expense_id")
     if expense_id:
-        updated = repo.update_expense(str(expense_id), payload)
+        update_payload: ExpenseUpdate = {
+            key: value for key, value in payload.items() if key != "group_id"
+        }
+        updated = repo.update_expense(str(expense_id), update_payload)
         if updated is None:
             raise ValueError(f"Updated expense not found for id={expense_id}")
         return updated
