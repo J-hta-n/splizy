@@ -1,46 +1,48 @@
 from decimal import Decimal
 
+from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
 from src.bot.convo_utils.formatters import get_2dp_str
+from src.lib.splizy_repo.model import PayeeData
 
 
-def build_payees(data: dict) -> list[dict]:
+def build_payees(data: ManageBillsUserData) -> list[PayeeData]:
     if data["split_type"] in ["equal_all", "equal_some"]:
-        participants = (
+        involved = (
             data["all_participants"]
             if data["split_type"] == "equal_all"
             else data["selected_participants"]
         )
-        if not participants:
+        if not involved:
             return []
-        amount_per_pax = data["amount"] / len(participants)
+        amount_per_pax = data["amount"] / len(involved)
         return [
             {
                 "user": username,
-                "amount": float(amount_per_pax),
+                "amount": float(amount_per_pax) if username in involved else 0,
             }
-            for username in participants
+            for username in data["all_participants"]
         ]
 
     # Custom split
     has_mult = data.get("has_mult", False)
     mult_val = Decimal(str(data.get("mult_val", 1))) if has_mult else Decimal("1")
-    payees: list[dict] = []
+    payees: list[PayeeData] = []
     for idx, (username, amount) in enumerate(
         zip(data["all_participants"], data["custom_amounts"])
     ):
-        if not data["participant_selections"][idx]:
-            continue
         final_amount = Decimal(str(amount)) * mult_val
         payees.append(
             {
                 "user": username,
-                "amount": float(final_amount),
+                "amount": (
+                    float(final_amount) if data["participant_selections"][idx] else 0
+                ),
             }
         )
     return payees
 
 
-def get_bill_summary(data):
+def get_bill_summary(data: ManageBillsUserData) -> str:
     if data["split_type"] == "equal_all":
         split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person)"
     elif data["split_type"] == "equal_some":
@@ -66,7 +68,7 @@ def get_bill_summary(data):
     return summary
 
 
-def get_bill_summary_with_receipt(data):
+def get_bill_summary_with_receipt(data: ManageBillsUserData) -> str:
     receipt = data["receipt"]
     items = receipt["items"]
     currency = data["currency"]
@@ -154,8 +156,7 @@ def populate_context_for_selected_expense_from_viewall(context, expense):
     participants = list(dict.fromkeys(entry["user"] for entry in payees))
 
     context.user_data["all_participants"] = participants
-    context.user_data["has_mult"] = expense.get("multiplier") is not None
-    context.user_data["mult_val"] = expense.get("multiplier")
+    context.user_data["is_equal_split"] = expense["is_equal_split"]
     if expense["is_equal_split"]:
         context.user_data["split_type"] = "equal_all"
     else:
@@ -170,10 +171,12 @@ def populate_context_for_selected_expense_from_viewall(context, expense):
     context.user_data["custom_amounts"] = [
         payees_map.get(username, Decimal("0")) for username in participants
     ]
+    context.user_data["has_mult"] = expense.get("multiplier") is not None
+    context.user_data["mult_val"] = expense.get("multiplier")
+
     context.user_data["expense_id"] = expense["id"]
     context.user_data["expense_name"] = expense["title"]
     context.user_data["amount"] = Decimal(str(expense["amount"]))
     context.user_data["paid_by"] = expense["paid_by"]
     context.user_data["currency"] = expense["currency"]
-    context.user_data["is_equal_split"] = expense["is_equal_split"]
     context.user_data["receipt"] = expense["receipt"]
