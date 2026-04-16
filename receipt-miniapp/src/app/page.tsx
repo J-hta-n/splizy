@@ -60,6 +60,9 @@ export default function Home() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [step1GuardError, setStep1GuardError] = useState<string | null>(null);
+  const [initialFetchedTotal, setInitialFetchedTotal] = useState<number | null>(
+    null,
+  );
 
   const [splitModalItemIndex, setSplitModalItemIndex] = useState<number | null>(
     null,
@@ -70,6 +73,22 @@ export default function Home() {
   >(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
   const [submittedSuccessfully, setSubmittedSuccessfully] = useState(false);
+
+  const recomputeReceiptTotals = (input: Receipt): Receipt => {
+    const subtotal = input.items.reduce(
+      (sum, item) => sum + Number(item.subtotal || 0),
+      0,
+    );
+    const serviceCharge = Number(input.service_charge || 0);
+    const gst = Number(input.gst || 0);
+    return {
+      ...input,
+      subtotal,
+      service_charge: serviceCharge,
+      gst,
+      total: subtotal + serviceCharge + gst,
+    };
+  };
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
@@ -127,7 +146,8 @@ export default function Home() {
           paidBy = data.paid_by ?? users[0] ?? "";
         }
 
-        setReceipt(receipt);
+        setInitialFetchedTotal(Number(receipt.total || 0));
+        setReceipt(recomputeReceiptTotals(receipt));
         setUsers(users);
         setExpenseTitle(expenseTitle);
         setPaidBy(paidBy);
@@ -474,6 +494,14 @@ export default function Home() {
     { step: 3, title: "Shared" },
   ];
 
+  const hasInitialTotalMismatch =
+    initialFetchedTotal !== null &&
+    Math.abs(initialFetchedTotal - receipt.total) > 0.009;
+
+  const totalMismatchWarning = hasInitialTotalMismatch
+    ? `Detected mismatch in parsed receipt total. Initial total was ${formatMoney(initialFetchedTotal ?? 0)} ${receipt.currency}, but computed total from items + charges is ${formatMoney(receipt.total)} ${receipt.currency}. Please review the item subtotals and charges before proceeding.`
+    : null;
+
   return (
     <main className="min-h-screen bg-[#eceff3] px-3 py-5 text-slate-900 sm:px-5">
       <div className="mx-auto w-full max-w-2xl space-y-4">
@@ -556,6 +584,7 @@ export default function Home() {
                 expenseTitle={expenseTitle}
                 paidBy={paidBy}
                 step1GuardError={step1GuardError}
+                totalMismatchWarning={totalMismatchWarning}
                 onUpdateExpenseTitle={setExpenseTitle}
                 onUpdatePaidBy={setPaidBy}
                 onUpdateItem={updateStep1Item}
