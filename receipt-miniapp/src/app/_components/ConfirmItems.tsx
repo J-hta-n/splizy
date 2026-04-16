@@ -206,6 +206,7 @@ type ConfirmItemsProps = {
   expenseTitle: string;
   paidBy: string;
   step1GuardError: string | null;
+  totalMismatchWarning: string | null;
   onUpdateExpenseTitle: (value: string) => void;
   onUpdatePaidBy: (value: string) => void;
   onUpdateItem: (
@@ -228,6 +229,7 @@ export function ConfirmItems({
   expenseTitle,
   paidBy,
   step1GuardError,
+  totalMismatchWarning,
   onUpdateExpenseTitle,
   onUpdatePaidBy,
   onUpdateItem,
@@ -314,6 +316,12 @@ export function ConfirmItems({
         {step1GuardError ? (
           <Typography color="error.main" variant="body2">
             {step1GuardError}
+          </Typography>
+        ) : null}
+
+        {totalMismatchWarning ? (
+          <Typography color="error.main" variant="body2">
+            {totalMismatchWarning}
           </Typography>
         ) : null}
 

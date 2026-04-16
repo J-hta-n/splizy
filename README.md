@@ -51,7 +51,7 @@ pip3 install -r requirements.txt
 - Alternatively, containerise with Docker:
 
 ```bash
-docker build
+docker build -t splizy-bot .
 ```
 
 2. Create and configure your local .env with reference to .env.example, then run:
