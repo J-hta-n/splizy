@@ -1,8 +1,11 @@
 from collections import defaultdict
 from typing import TypeAlias, TypedDict
 
-from src.lib.currencies.config import CURRENCY_SHORTHAND_MAPPING
-from src.lib.currencies.utils import build_exchange_rate_summary, convert
+from src.lib.currencies.utils import (
+    build_exchange_rate_summary,
+    convert,
+    get_shorthand_currency,
+)
 from src.lib.splizy_repo.model import CurrencyCode, ExpenseRow
 
 AMOUNT_CUTOFF = 0.01
@@ -19,7 +22,7 @@ class SettleupStats(TypedDict):
 
 
 def _get_suggested_payments_str(payments: Payments, settleup_currency) -> str:
-    shorthand_currency = CURRENCY_SHORTHAND_MAPPING[settleup_currency]
+    shorthand_currency = get_shorthand_currency(settleup_currency)
     res = [
         f"Suggested transfers in {settleup_currency} ({shorthand_currency}):\n---------------------------------"
     ]
