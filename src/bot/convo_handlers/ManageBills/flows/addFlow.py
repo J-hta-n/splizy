@@ -1,13 +1,18 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_handlers.ManageBills.utils.general import build_payees
+from src.bot.convo_handlers.ManageBills.utils.general import (
+    build_payees,
+    format_saved_expense_summary,
+)
 from src.bot.convo_handlers.ManageBills.utils.parsers import (
     parse_amount,
     parse_multiplier,
 )
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    get_view_all_entries_markup,
     send_confirmation_form,
     send_custom_multiselect_users,
     send_expense_view,
@@ -42,7 +47,6 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ManageBillStates.EXPENSE_CONFIRM
 
     expense_currency, usernames = get_group_expense_setup(update.message.chat.id)
-    context.user_data["expense_currency"] = expense_currency
     context.user_data["currency"] = expense_currency
     context.user_data["all_participants"] = usernames
     await update.message.reply_text(
@@ -108,7 +112,7 @@ async def expense_split_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     split_type = query.data
-    data = context.user_data
+    data: ManageBillStates = context.user_data
 
     if split_type == "split_equal_all":
         data["is_equal_split"] = True
@@ -175,8 +179,11 @@ async def expense_participants(
     # Check if all participants were selected anyway
     selected_participants = [
         username
-        for idx, username in enumerate(context.user_data["all_participants"])
-        if context.user_data["participant_selections"][idx]
+        for username, is_selected in zip(
+            context.user_data["all_participants"],
+            context.user_data["participant_selections"],
+        )
+        if is_selected
     ]
     if len(selected_participants) == len(context.user_data["all_participants"]):
         context.user_data["split_type"] = "equal_all"
@@ -270,13 +277,14 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return ConversationHandler.END
 
     elif action == "submit_form":
-        data = context.user_data
+        data: ManageBillsUserData = context.user_data
         payees = build_payees(data)
         # NOTE: look into implementing transactions in the repo/service layer in future if needed; for now
         # things are simple enough that failures are unlikely / manual rollbacks are manageable, so no need
         # to overengineer at the moment
         try:
             saved_expense = save_expense(query.message.chat.id, data, payees)
+            # If editing, update context and return to expense view
             if "expense_id" in data:
                 # Then update the context and return to expense view
                 index = context.user_data["expense_index"]
@@ -285,13 +293,12 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     update, context, "(Expense updated successfully)"
                 )
                 return ManageBillStates.EDIT_OR_GO_BACK
-            # Else create new expense and record its expense_id
-            data["expense_id"] = saved_expense["id"]
+            # Else create new expense and show viewall option
             await query.edit_message_text(
-                f"Expense for {data['expense_name']} saved successfully!"
+                format_saved_expense_summary(saved_expense),
+                reply_markup=get_view_all_entries_markup(),
             )
-            context.user_data.clear()
-            return ConversationHandler.END
+            return ManageBillStates.VIEW_EXPENSE
 
         except Exception as e:
             logger.error(f"Failed to add / edit expense: {e}")

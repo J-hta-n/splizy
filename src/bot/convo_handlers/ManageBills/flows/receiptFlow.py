@@ -5,13 +5,12 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
+    format_saved_expense_summary,
     populate_context_for_selected_expense_from_viewall,
 )
-from src.bot.convo_handlers.ManageBills.utils.receipt import (
-    compute_spending_from_last_receipt,
-    to_miniapp_receipt,
-)
+from src.bot.convo_handlers.ManageBills.utils.receipt import to_miniapp_receipt
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    get_view_all_entries_markup,
     open_miniapp,
     send_expense_view,
 )
@@ -121,7 +120,7 @@ async def expense_receipt_confirm(
             return ConversationHandler.END
         index = context.user_data["expense_index"]
         context.user_data["expenses"][index] = expense
-        populate_context_for_selected_expense_from_viewall(context, expense)
+        populate_context_for_selected_expense_from_viewall(context.user_data, expense)
         await send_expense_view(update, context)
         return ManageBillStates.EDIT_OR_GO_BACK
 
@@ -145,34 +144,11 @@ async def expense_receipt_confirm(
         )
         return ConversationHandler.END
 
-    payees = expense.get("payees") or []
-    user_spending_lines = [
-        f"{(entry.get('user') or entry.get('username') or '-')} - {expense.get('currency', '')} {float(entry.get('amount') or 0):.2f}"
-        for entry in payees
-        if (entry.get("user") or entry.get("username"))
-    ]
-
-    if not user_spending_lines:
-        last_receipt = temp_receipt.get("last_receipt") or {}
-        computed = compute_spending_from_last_receipt(last_receipt)
-        user_spending_lines = [
-            f"{username} - {expense.get('currency', '')} {amount:.2f}"
-            for username, amount in sorted(computed.items())
-        ]
-
-    try:
-        total_amount = float(expense.get("amount") or 0)
-    except (TypeError, ValueError):
-        total_amount = 0.0
-
-    lines = [
-        "Receipt saved successfully! Details:",
-        f"Total: {expense.get('currency', '')} {total_amount:.2f}",
-        f"Paid by: {expense.get('paid_by', '-')}",
-        "User spending:",
-    ]
-    lines.extend(user_spending_lines)
-
-    await query.edit_message_text("\n".join(lines))
-    context.user_data.clear()
-    return ConversationHandler.END
+    await query.edit_message_text(
+        format_saved_expense_summary(
+            expense,
+            source_label="Receipt",
+        ),
+        reply_markup=get_view_all_entries_markup(),
+    )
+    return ManageBillStates.VIEW_EXPENSE

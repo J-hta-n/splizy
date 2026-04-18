@@ -10,7 +10,7 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.Settleup.utils.general import SettleupStats
-from src.lib.currencies.config import CURRENCY_SHORTHAND_MAPPING
+from src.lib.currencies.utils import get_shorthand_currency
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -58,7 +58,7 @@ def _fit_user_label(user: str, max_len: int = 16) -> str:
 
 
 def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
-    currency = CURRENCY_SHORTHAND_MAPPING.get(stats["currency"], stats["currency"])
+    currency = get_shorthand_currency(stats["currency"])
     payers = stats.get("payers", {})
     transfers = stats.get("transfers", {})
     final_spending = stats.get("individual_spending", {})
@@ -172,7 +172,7 @@ async def send_stats_chart(
 
 
 def _build_spending_chart(stats: SettleupStats) -> BytesIO:
-    currency = CURRENCY_SHORTHAND_MAPPING.get(stats["currency"], stats["currency"])
+    currency = get_shorthand_currency(stats["currency"])
     indiv = stats.get("individual_spending", {})
 
     if isinstance(indiv, dict):

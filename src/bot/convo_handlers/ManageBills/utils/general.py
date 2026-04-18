@@ -1,8 +1,8 @@
 from decimal import Decimal
 
 from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
-from src.bot.convo_utils.formatters import get_2dp_str
-from src.lib.splizy_repo.model import PayeeData
+from src.lib.currencies.utils import get_shorthand_currency
+from src.lib.splizy_repo.model import ExpenseRow, PayeeData
 
 
 def build_payees(data: ManageBillsUserData) -> list[PayeeData]:
@@ -42,141 +42,60 @@ def build_payees(data: ManageBillsUserData) -> list[PayeeData]:
     return payees
 
 
-def get_bill_summary(data: ManageBillsUserData) -> str:
-    if data["split_type"] == "equal_all":
-        split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person)"
-    elif data["split_type"] == "equal_some":
-        selected_participants = data["selected_participants"]
-        split_status = f"equally among {len(selected_participants)} people (@{', @'.join(selected_participants)}, {data['currency']} {get_2dp_str(data['amount']/len(selected_participants))} per person)"
-    elif data["split_type"] == "custom":
-        mult_val = data["mult_val"] if data["has_mult"] else 1
-        custom_split_str = "\n".join(
-            f"@{username} - {get_2dp_str(Decimal(str(amount))*Decimal(mult_val))}"
-            for idx, (username, amount) in enumerate(
-                zip(data["selected_participants"], data["custom_amounts"])
-            )
-            if data["participant_selections"][idx]
-        )
-        split_status = f"by custom amounts in {data['currency']}{' (Receipt details available)' if data.get('receipt') else ''}\n{custom_split_str}"
-
-    summary = (
-        f"---Bill for {data['expense_name']}---\n"
-        f"Paid by: @{data['paid_by']}\n"
-        f"Currency & Amount: {data['currency']} {get_2dp_str(data['amount'])}\n"
-        f"Split: {split_status}\n"
+def format_saved_expense_summary(
+    expense: ExpenseRow,
+    source_label: str = "Expense",
+) -> str:
+    currency_symbol = get_shorthand_currency(expense.get("currency"))
+    total_amount = float(expense.get("amount"))
+    paid_by = expense.get("paid_by")
+    user_spendings = "\n".join(
+        [
+            f"@{payee['user']} - {currency_symbol}{payee['amount']:.2f}"
+            for payee in expense.get("payees")
+        ]
     )
-    return summary
 
-
-def get_bill_summary_with_receipt(data: ManageBillsUserData) -> str:
-    receipt = data["receipt"]
-    items = receipt["items"]
-    currency = data["currency"]
-
-    participants = data["all_participants"]
-
-    spendings = {username: Decimal("0") for username in participants}
-    spending_details = {username: [] for username in participants}
-
-    subtotal = Decimal(str(receipt["subtotal"]))
-    total = Decimal(str(receipt["total"]))
-    factor = total / subtotal
-
-    for item in items:
-        item_name = item["name"]
-        quantity = Decimal(str(item["quantity"]))
-        item_subtotal = Decimal(str(item["subtotal"]))
-
-        if quantity <= 0:
-            continue
-
-        unit_price = (item_subtotal / quantity) * factor
-
-        indiv_qty = Decimal("0")
-        for entry in item["indiv"]:
-            username = entry["username"]
-            entry_qty = Decimal(str(entry["quantity"]))
-            if entry_qty <= 0:
-                continue
-
-            indiv_qty += entry_qty
-            line_subtotal = unit_price * entry_qty
-            if username not in spendings:
-                spendings[username] = Decimal("0")
-                spending_details[username] = []
-            spendings[username] += line_subtotal
-            spending_details[username].append((entry_qty, item_name, line_subtotal))
-
-        shared_qty = quantity - indiv_qty
-        shared_users = item["shared"]
-        if shared_qty <= 0 or len(shared_users) < 2:
-            continue
-
-        qty_per_user = shared_qty / Decimal(str(len(shared_users)))
-        amount_per_user = unit_price * qty_per_user
-        for username in shared_users:
-            spendings[username] += amount_per_user
-            spending_details[username].append(
-                (qty_per_user, item_name, amount_per_user)
-            )
-
-    def _format_qty(qty: Decimal) -> str:
-        rounded = qty.quantize(Decimal("0.01"))
-        if rounded == rounded.to_integral_value():
-            return str(int(rounded))
-        return get_2dp_str(rounded)
-
-    users_for_output = participants
-    user_blocks = []
-    for username in users_for_output:
-        total_spent = spendings[username]
-        details = spending_details[username]
-        lines = [f"@{username} - ${get_2dp_str(total_spent)}"]
-        if details:
-            lines.extend(
-                f"- {_format_qty(qty)} {name} (${get_2dp_str(amount)})"
-                for qty, name, amount in details
-            )
-        user_blocks.append("\n".join(lines))
-
-    user_spendings = "\n\n".join(user_blocks) if user_blocks else "-"
-
-    summary = (
-        f"---Bill for {data['expense_name']}---\n"
-        f"Paid by: @{data['paid_by']}\n"
-        f"Amount: {currency} {get_2dp_str(data['amount'])}\n"
-        f"User spendings (in {currency}):\n\n{user_spendings}"
+    expense_summary = (
+        f"{source_label} saved successfully! Details:\n"
+        + f"Total: {currency_symbol}{total_amount:.2f}\n"
+        + f"Paid by: @{paid_by}\n"
+        + f"User spendings:\n{user_spendings}"
     )
-    return summary
+
+    return expense_summary
 
 
-def populate_context_for_selected_expense_from_viewall(context, expense):
+def populate_context_for_selected_expense_from_viewall(
+    data: ManageBillsUserData, expense: ExpenseRow
+):
     payees = expense["payees"]
-    payees_map = {entry["user"]: Decimal(str(entry["amount"])) for entry in payees}
-    participants = list(dict.fromkeys(entry["user"] for entry in payees))
+    participants = [entry["user"] for entry in payees]
+    amounts = [float(entry["amount"]) for entry in payees]
 
-    context.user_data["all_participants"] = participants
-    context.user_data["is_equal_split"] = expense["is_equal_split"]
+    data["all_participants"] = participants
+    data["is_equal_split"] = expense["is_equal_split"]
     if expense["is_equal_split"]:
-        context.user_data["split_type"] = "equal_all"
+        is_all_involved = all([amount > 0 for amount in amounts])
+        data["split_type"] = "equal_all" if is_all_involved else "equal_some"
     else:
-        context.user_data["split_type"] = "custom"
-    context.user_data["selected_participants"] = [
-        entry["user"] for entry in payees if entry["user"] in participants
+        data["split_type"] = "custom"
+    data["selected_participants"] = [
+        entry["user"] for entry in payees if float(entry["amount"]) > 0
     ]
-    context.user_data["participant_selections"] = [
-        username in context.user_data["selected_participants"]
-        for username in participants
-    ]
-    context.user_data["custom_amounts"] = [
-        payees_map.get(username, Decimal("0")) for username in participants
-    ]
-    context.user_data["has_mult"] = expense.get("multiplier") is not None
-    context.user_data["mult_val"] = expense.get("multiplier")
+    data["custom_amounts"] = amounts
+    data["has_mult"] = expense.get("multiplier") is not None
+    data["mult_val"] = expense.get("multiplier")
 
-    context.user_data["expense_id"] = expense["id"]
-    context.user_data["expense_name"] = expense["title"]
-    context.user_data["amount"] = Decimal(str(expense["amount"]))
-    context.user_data["paid_by"] = expense["paid_by"]
-    context.user_data["currency"] = expense["currency"]
-    context.user_data["receipt"] = expense["receipt"]
+    data["expense_id"] = expense["id"]
+    data["expense_name"] = expense["title"]
+    data["amount"] = Decimal(str(expense["amount"]))
+    data["paid_by"] = expense["paid_by"]
+    data["currency"] = expense["currency"]
+    data["receipt"] = expense["receipt"]
+
+
+def initialise_viewall_context(data: ManageBillsUserData, expenses):
+    data["expenses"] = expenses
+    data["viewall_page"] = 0
+    data["viewall_is_collapsed"] = False

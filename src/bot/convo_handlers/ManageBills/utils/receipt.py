@@ -1,6 +1,7 @@
 from src.lib.receipt_parser.model import MiniappReceipt, Receipt
 
 
+# Deprecated - kept in case needed again in future
 def compute_spending_from_last_receipt(last_receipt: MiniappReceipt) -> dict:
     res = {user: 0.0 for user in last_receipt.users}
     receipt = last_receipt.receipt

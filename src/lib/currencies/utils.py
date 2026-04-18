@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Iterable, TypeGuard
 
 from src.lib.currencies.config import (
+    CURRENCY_SHORTHAND_MAPPING,
     EXCHANGE_RATES_FILE_PATH,
     EXCHANGE_RATES_MAX_AGE,
     MANUAL_EXCHANGE_RATE_OVERRIDES,
@@ -11,6 +12,11 @@ from src.lib.currencies.model import ExchangeRatesApiResponse
 from src.lib.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def get_shorthand_currency(currency_code: str) -> str:
+    """Get the shorthand symbol (e.g., $ for USD) for a 3-letter currency code."""
+    return CURRENCY_SHORTHAND_MAPPING.get(currency_code, currency_code)
 
 
 def _is_exchange_rates_payload(payload: object) -> TypeGuard[ExchangeRatesApiResponse]:
