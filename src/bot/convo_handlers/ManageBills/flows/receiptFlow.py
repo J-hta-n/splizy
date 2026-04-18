@@ -13,6 +13,7 @@ from src.bot.convo_handlers.ManageBills.utils.receipt import (
     to_miniapp_receipt,
 )
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    get_view_all_entries_markup,
     open_miniapp,
     send_expense_view,
 )
@@ -162,8 +163,7 @@ async def expense_receipt_confirm(
         last_receipt = temp_receipt.get("last_receipt") or {}
         computed = compute_spending_from_last_receipt(last_receipt)
         user_amounts = [
-            (username, amount)
-            for username, amount in sorted(computed.items())
+            (username, amount) for username, amount in sorted(computed.items())
         ]
 
     await query.edit_message_text(
@@ -171,7 +171,11 @@ async def expense_receipt_confirm(
             expense,
             source_label="Receipt",
             user_amounts=user_amounts,
-        )
+        ),
+        reply_markup=get_view_all_entries_markup(),
     )
-    context.user_data.clear()
-    return ConversationHandler.END
+    data = context.user_data
+    data["expenses"] = [expense]
+    data["viewall_page"] = 0
+    data["viewall_is_collapsed"] = False
+    return ManageBillStates.VIEW_EXPENSE

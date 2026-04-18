@@ -78,7 +78,10 @@ def format_saved_expense_summary(
 
     if user_amounts:
         lines.extend(
-            [f"@{username} - {currency_symbol}{amount:.2f}" for username, amount in user_amounts]
+            [
+                f"@{username} - {currency_symbol}{amount:.2f}"
+                for username, amount in user_amounts
+            ]
         )
     else:
         lines.append("-")

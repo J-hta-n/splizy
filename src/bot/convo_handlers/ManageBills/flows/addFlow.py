@@ -1,6 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
     build_payees,
@@ -11,6 +12,7 @@ from src.bot.convo_handlers.ManageBills.utils.parsers import (
     parse_multiplier,
 )
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
+    get_view_all_entries_markup,
     send_confirmation_form,
     send_custom_multiselect_users,
     send_expense_view,
@@ -273,7 +275,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return ConversationHandler.END
 
     elif action == "submit_form":
-        data = context.user_data
+        data: ManageBillsUserData = context.user_data
         payees = build_payees(data)
         # NOTE: look into implementing transactions in the repo/service layer in future if needed; for now
         # things are simple enough that failures are unlikely / manual rollbacks are manageable, so no need
@@ -290,9 +292,14 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 return ManageBillStates.EDIT_OR_GO_BACK
             # Else create new expense and record its expense_id
             data["expense_id"] = saved_expense["id"]
-            await query.edit_message_text(format_saved_expense_summary(saved_expense))
-            context.user_data.clear()
-            return ConversationHandler.END
+            data["expenses"] = [saved_expense]
+            data["viewall_page"] = 0
+            data["viewall_is_collapsed"] = False
+            await query.edit_message_text(
+                format_saved_expense_summary(saved_expense),
+                reply_markup=get_view_all_entries_markup(),
+            )
+            return ManageBillStates.VIEW_EXPENSE
 
         except Exception as e:
             logger.error(f"Failed to add / edit expense: {e}")

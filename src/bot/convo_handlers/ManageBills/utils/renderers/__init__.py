@@ -1,4 +1,5 @@
 from src.bot.convo_handlers.ManageBills.utils.renderers.index import (
+    get_view_all_entries_markup,
     open_miniapp,
     send_all_expenses,
     send_confirmation_form,
@@ -10,6 +11,7 @@ from src.bot.convo_handlers.ManageBills.utils.renderers.index import (
 )
 
 __all__ = [
+    "get_view_all_entries_markup",
     "open_miniapp",
     "send_all_expenses",
     "send_confirmation_form",

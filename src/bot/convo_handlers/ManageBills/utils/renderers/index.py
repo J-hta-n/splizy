@@ -11,6 +11,7 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     GO_BACK,
     HIDE_RECEIPT,
     SHOW_RECEIPT,
+    VIEW_ALL_ENTRIES,
     VIEW_PAGE_NEXT,
     VIEW_PAGE_PREV,
     VIEW_SELECT_PREFIX,
@@ -29,6 +30,18 @@ from src.lib.currencies.utils import get_shorthand_currency
 MAX_TELEGRAM_TEXT_LEN = 3800
 RECEIPT_DETAIL_MESSAGE_IDS_KEY = "receipt_detail_message_ids"
 VIEWALL_PAGE_SIZE = 10
+
+
+def get_view_all_entries_markup() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "View all entries so far", callback_data=VIEW_ALL_ENTRIES
+                )
+            ]
+        ]
+    )
 
 
 def _chunk_text_by_blocks(text: str, max_len: int = MAX_TELEGRAM_TEXT_LEN) -> list[str]:
@@ -252,9 +265,13 @@ async def send_all_expenses(
 
     nav_row = []
     if current_page > 0:
-        nav_row.append(InlineKeyboardButton("<- Prev", callback_data=VIEW_PAGE_PREV))
+        nav_row.append(
+            InlineKeyboardButton("<- Prev page", callback_data=VIEW_PAGE_PREV)
+        )
     if current_page < total_pages - 1:
-        nav_row.append(InlineKeyboardButton("Next ->", callback_data=VIEW_PAGE_NEXT))
+        nav_row.append(
+            InlineKeyboardButton("Next page ->", callback_data=VIEW_PAGE_NEXT)
+        )
     if nav_row:
         keyboard.append(nav_row)
 
