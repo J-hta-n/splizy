@@ -1,5 +1,4 @@
 from decimal import Decimal
-from math import ceil
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest
@@ -19,16 +18,17 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     VIEW_TOGGLE_SHOW,
 )
 from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
-from src.bot.convo_handlers.ManageBills.utils.general import (
+from src.bot.convo_handlers.ManageBills.utils.renderers.bill_summary import (
     get_bill_summary,
     get_bill_summary_with_receipt,
 )
-from src.bot.convo_utils.formatters import get_2dp_str
+from src.bot.convo_utils.formatters import get_2dp_str, truncate_and_pad_label
+from src.bot.convo_utils.pagination import get_page_window
+from src.lib.currencies.utils import get_shorthand_currency
 
 MAX_TELEGRAM_TEXT_LEN = 3800
 RECEIPT_DETAIL_MESSAGE_IDS_KEY = "receipt_detail_message_ids"
 VIEWALL_PAGE_SIZE = 10
-VIEWALL_PREVIEW_CHARS = 10
 
 
 def _chunk_text_by_blocks(text: str, max_len: int = MAX_TELEGRAM_TEXT_LEN) -> list[str]:
@@ -219,37 +219,31 @@ async def send_all_expenses(
 ):
     await _delete_receipt_detail_messages(update, context)
 
-    def _truncate_preview(text: str, max_len: int = VIEWALL_PREVIEW_CHARS) -> str:
-        if len(text) <= max_len:
-            return text
-        return f"{text[: max_len - 3]}..."
-
     data: ManageBillsUserData = context.user_data
     expenses = data["expenses"]
     total_expenses = len(expenses)
-    total_pages = max(1, ceil(total_expenses / VIEWALL_PAGE_SIZE))
-    current_page = max(
-        0,
-        min(int(data.get("viewall_page", 0)), total_pages - 1),
+    current_page, total_pages, start_idx, end_idx = get_page_window(
+        total_items=total_expenses,
+        page_size=VIEWALL_PAGE_SIZE,
+        requested_page=int(data.get("viewall_page", 0)),
     )
     data["viewall_page"] = current_page
     is_collapsed = bool(data.get("viewall_is_collapsed", False))
-
-    start_idx = current_page * VIEWALL_PAGE_SIZE
-    end_idx = min(start_idx + VIEWALL_PAGE_SIZE, total_expenses)
 
     keyboard = []
 
     if not is_collapsed:
         for idx in range(start_idx, end_idx):
             expense = expenses[idx]
+            title_label = truncate_and_pad_label(expense["title"], width=12)
+            payer_label = truncate_and_pad_label(f"@{expense['paid_by']}", width=8)
             keyboard.append(
                 [
                     InlineKeyboardButton(
                         (
-                            f"{_truncate_preview(expense['title'])} | "
-                            f"@{_truncate_preview(expense['paid_by'])} | "
-                            f"{expense['currency']} {expense['amount']:.2f}"
+                            f"{title_label} | "
+                            f"{payer_label} | "
+                            f"{get_shorthand_currency(expense['currency'])}{expense['amount']:.2f}"
                         ),
                         callback_data=f"{VIEW_SELECT_PREFIX}{idx}",
                     )
@@ -269,15 +263,11 @@ async def send_all_expenses(
     keyboard.append([InlineKeyboardButton(toggle_label, callback_data=toggle_callback)])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    collapsed_line = (
-        "List hidden. Tap 'Show entries' to expand.\n" if is_collapsed else ""
+    total_expenses_text = (
+        f"{total_expenses} expense{'s' if total_expenses > 1 else ''} so far"
     )
-    text = (
-        "All logged expenses so far (earliest -> latest):\n"
-        "<title | payer | amount>\n"
-        f"Page {current_page + 1}/{total_pages} | Total expenses: {total_expenses}\n"
-        f"{collapsed_line}"
-    )
+    page_text = f"(Page {current_page + 1}/{total_pages})" if total_pages > 1 else ""
+    text = f"{total_expenses_text} {page_text}\n" "Format: (title | payer | amount)\n"
 
     if is_new_msg:
         await update.message.reply_text(text, reply_markup=reply_markup)
