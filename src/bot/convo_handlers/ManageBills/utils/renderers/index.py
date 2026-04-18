@@ -262,18 +262,17 @@ async def send_all_expenses(
                     )
                 ]
             )
-
-    nav_row = []
-    if current_page > 0:
-        nav_row.append(
-            InlineKeyboardButton("<- Prev page", callback_data=VIEW_PAGE_PREV)
-        )
-    if current_page < total_pages - 1:
-        nav_row.append(
-            InlineKeyboardButton("Next page ->", callback_data=VIEW_PAGE_NEXT)
-        )
-    if nav_row:
-        keyboard.append(nav_row)
+        nav_row = []
+        if current_page > 0:
+            nav_row.append(
+                InlineKeyboardButton("<- Prev page", callback_data=VIEW_PAGE_PREV)
+            )
+        if current_page < total_pages - 1:
+            nav_row.append(
+                InlineKeyboardButton("Next page ->", callback_data=VIEW_PAGE_NEXT)
+            )
+        if nav_row:
+            keyboard.append(nav_row)
 
     toggle_label = "Show entries" if is_collapsed else "Hide entries"
     toggle_callback = VIEW_TOGGLE_SHOW if is_collapsed else VIEW_TOGGLE_HIDE
