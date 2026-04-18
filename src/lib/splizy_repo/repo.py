@@ -66,6 +66,7 @@ class SplizyRepo:
         ).execute()
 
     def list_expenses(self, group_id: GroupId) -> list[ExpenseRow]:
+        # Return earliest first, hence sort by created_at desc
         response = (
             supabase.table("expenses")
             .select("*")

@@ -12,6 +12,8 @@ class ManageBillsUserData(TypedDict, total=False):
     # View all
     expenses: list[ExpenseRow]
     expense_index: int
+    viewall_page: int
+    viewall_is_collapsed: bool
     # Add, view, edit
     all_participants: list[str]
     is_equal_split: bool
