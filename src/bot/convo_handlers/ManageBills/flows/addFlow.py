@@ -2,7 +2,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
-from src.bot.convo_handlers.ManageBills.utils.general import build_payees
+from src.bot.convo_handlers.ManageBills.utils.general import (
+    build_payees,
+    format_saved_expense_summary,
+)
 from src.bot.convo_handlers.ManageBills.utils.parsers import (
     parse_amount,
     parse_multiplier,
@@ -287,9 +290,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 return ManageBillStates.EDIT_OR_GO_BACK
             # Else create new expense and record its expense_id
             data["expense_id"] = saved_expense["id"]
-            await query.edit_message_text(
-                f"Expense for {data['expense_name']} saved successfully!"
-            )
+            await query.edit_message_text(format_saved_expense_summary(saved_expense))
             context.user_data.clear()
             return ConversationHandler.END
 

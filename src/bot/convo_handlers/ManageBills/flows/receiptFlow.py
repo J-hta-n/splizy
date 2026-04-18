@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
+    format_saved_expense_summary,
     populate_context_for_selected_expense_from_viewall,
 )
 from src.bot.convo_handlers.ManageBills.utils.receipt import (
@@ -145,34 +146,32 @@ async def expense_receipt_confirm(
         )
         return ConversationHandler.END
 
+    user_amounts: list[tuple[str, float]] | None = None
     payees = expense.get("payees") or []
-    user_spending_lines = [
-        f"{(entry.get('user') or entry.get('username') or '-')} - {expense.get('currency', '')} {float(entry.get('amount') or 0):.2f}"
-        for entry in payees
-        if (entry.get("user") or entry.get("username"))
-    ]
+    if payees:
+        user_amounts = [
+            (
+                str(entry.get("user") or entry.get("username") or ""),
+                float(entry.get("amount") or 0),
+            )
+            for entry in payees
+            if (entry.get("user") or entry.get("username"))
+        ]
 
-    if not user_spending_lines:
+    if not user_amounts:
         last_receipt = temp_receipt.get("last_receipt") or {}
         computed = compute_spending_from_last_receipt(last_receipt)
-        user_spending_lines = [
-            f"{username} - {expense.get('currency', '')} {amount:.2f}"
+        user_amounts = [
+            (username, amount)
             for username, amount in sorted(computed.items())
         ]
 
-    try:
-        total_amount = float(expense.get("amount") or 0)
-    except (TypeError, ValueError):
-        total_amount = 0.0
-
-    lines = [
-        "Receipt saved successfully! Details:",
-        f"Total: {expense.get('currency', '')} {total_amount:.2f}",
-        f"Paid by: {expense.get('paid_by', '-')}",
-        "User spending:",
-    ]
-    lines.extend(user_spending_lines)
-
-    await query.edit_message_text("\n".join(lines))
+    await query.edit_message_text(
+        format_saved_expense_summary(
+            expense,
+            source_label="Receipt",
+            user_amounts=user_amounts,
+        )
+    )
     context.user_data.clear()
     return ConversationHandler.END
