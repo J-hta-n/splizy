@@ -14,10 +14,9 @@ def get_bill_summary(data: ManageBillsUserData) -> str:
         mult_val = data["mult_val"] if data["has_mult"] else 1
         custom_split_str = "\n".join(
             f"@{username} - {get_2dp_str(Decimal(str(amount))*Decimal(mult_val))}"
-            for idx, (username, amount) in enumerate(
-                zip(data["selected_participants"], data["custom_amounts"])
+            for username, amount in zip(
+                data["all_participants"], data["custom_amounts"]
             )
-            if data["participant_selections"][idx]
         )
         split_status = f"by custom amounts in {data['currency']}{' (Receipt details available)' if data.get('receipt') else ''}\n{custom_split_str}"
 

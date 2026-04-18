@@ -45,77 +45,57 @@ def build_payees(data: ManageBillsUserData) -> list[PayeeData]:
 def format_saved_expense_summary(
     expense: ExpenseRow,
     source_label: str = "Expense",
-    user_amounts: list[tuple[str, float]] | None = None,
 ) -> str:
-    currency_code = expense.get("currency", "")
-    currency_symbol = get_shorthand_currency(currency_code)
-
-    try:
-        total_amount = float(expense.get("amount") or 0)
-    except (TypeError, ValueError):
-        total_amount = 0.0
-
+    currency_symbol = get_shorthand_currency(expense.get("currency"))
+    total_amount = float(expense.get("amount"))
     paid_by = expense.get("paid_by")
-    paid_by_label = f"@{paid_by}" if paid_by else "-"
-
-    if user_amounts is None:
-        payees = expense.get("payees") or []
-        user_amounts = [
-            (
-                str(entry.get("user") or entry.get("username") or ""),
-                float(entry.get("amount") or 0),
-            )
-            for entry in payees
-            if (entry.get("user") or entry.get("username"))
+    user_spendings = "\n".join(
+        [
+            f"@{payee['user']} - {currency_symbol}{payee['amount']:.2f}"
+            for payee in expense.get("payees")
         ]
+    )
 
-    lines = [
-        f"{source_label} saved successfully! Details:",
-        f"Total: {currency_symbol}{total_amount:.2f}",
-        f"Paid by: {paid_by_label}",
-        "User spendings:",
-    ]
+    expense_summary = (
+        f"{source_label} saved successfully! Details:\n"
+        + f"Total: {currency_symbol}{total_amount:.2f}\n"
+        + f"Paid by: @{paid_by}\n"
+        + f"User spendings:\n{user_spendings}"
+    )
 
-    if user_amounts:
-        lines.extend(
-            [
-                f"@{username} - {currency_symbol}{amount:.2f}"
-                for username, amount in user_amounts
-            ]
-        )
-    else:
-        lines.append("-")
-
-    return "\n".join(lines)
+    return expense_summary
 
 
-def populate_context_for_selected_expense_from_viewall(context, expense):
+def populate_context_for_selected_expense_from_viewall(
+    data: ManageBillsUserData, expense: ExpenseRow
+):
     payees = expense["payees"]
-    payees_map = {entry["user"]: Decimal(str(entry["amount"])) for entry in payees}
-    participants = list(dict.fromkeys(entry["user"] for entry in payees))
+    participants = [entry["user"] for entry in payees]
+    amounts = [float(entry["amount"]) for entry in payees]
 
-    context.user_data["all_participants"] = participants
-    context.user_data["is_equal_split"] = expense["is_equal_split"]
+    data["all_participants"] = participants
+    data["is_equal_split"] = expense["is_equal_split"]
     if expense["is_equal_split"]:
-        context.user_data["split_type"] = "equal_all"
+        is_all_involved = all([amount > 0 for amount in amounts])
+        data["split_type"] = "equal_all" if is_all_involved else "equal_some"
     else:
-        context.user_data["split_type"] = "custom"
-    context.user_data["selected_participants"] = [
-        entry["user"] for entry in payees if entry["user"] in participants
+        data["split_type"] = "custom"
+    data["selected_participants"] = [
+        entry["user"] for entry in payees if float(entry["amount"]) > 0
     ]
-    context.user_data["participant_selections"] = [
-        username in context.user_data["selected_participants"]
-        for username in participants
-    ]
-    context.user_data["custom_amounts"] = [
-        payees_map.get(username, Decimal("0")) for username in participants
-    ]
-    context.user_data["has_mult"] = expense.get("multiplier") is not None
-    context.user_data["mult_val"] = expense.get("multiplier")
+    data["custom_amounts"] = amounts
+    data["has_mult"] = expense.get("multiplier") is not None
+    data["mult_val"] = expense.get("multiplier")
 
-    context.user_data["expense_id"] = expense["id"]
-    context.user_data["expense_name"] = expense["title"]
-    context.user_data["amount"] = Decimal(str(expense["amount"]))
-    context.user_data["paid_by"] = expense["paid_by"]
-    context.user_data["currency"] = expense["currency"]
-    context.user_data["receipt"] = expense["receipt"]
+    data["expense_id"] = expense["id"]
+    data["expense_name"] = expense["title"]
+    data["amount"] = Decimal(str(expense["amount"]))
+    data["paid_by"] = expense["paid_by"]
+    data["currency"] = expense["currency"]
+    data["receipt"] = expense["receipt"]
+
+
+def initialise_viewall_context(data: ManageBillsUserData, expenses):
+    data["expenses"] = expenses
+    data["viewall_page"] = 0
+    data["viewall_is_collapsed"] = False

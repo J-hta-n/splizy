@@ -9,9 +9,10 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     VIEW_TOGGLE_HIDE,
     VIEW_TOGGLE_SHOW,
 )
-from src.bot.convo_handlers.ManageBills.context import get_managebills_user_data
+from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
+    initialise_viewall_context,
     populate_context_for_selected_expense_from_viewall,
 )
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
@@ -24,26 +25,30 @@ from src.lib.splizy_repo.repo import repo
 
 @group_only
 async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    data = get_managebills_user_data(context)
     group_id = update.message.chat.id
     expenses = repo.list_expenses(group_id)
     if not expenses:
         await update.message.reply_text("No expenses logged yet.")
         return ConversationHandler.END
-    data["expenses"] = expenses
-    data["viewall_page"] = 0
-    data["viewall_is_collapsed"] = False
-
+    initialise_viewall_context(context.user_data, expenses)
     await send_all_expenses(update, context)
     return ManageBillStates.VIEW_EXPENSE
 
 
 async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    data = get_managebills_user_data(context)
     query = update.callback_query
     await query.answer()
 
     if not query.data:
+        return ManageBillStates.VIEW_EXPENSE
+    data: ManageBillsUserData = context.user_data
+
+    # Entry point to viewall from addFlow
+    if query.data == VIEW_ALL_ENTRIES:
+        group_id = query.message.chat.id
+        expenses = repo.list_expenses(group_id)
+        initialise_viewall_context(data, expenses)
+        await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE
 
     if query.data.startswith(VIEW_SELECT_PREFIX):
@@ -58,22 +63,9 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         data["expense_index"] = index
         expense = data["expenses"][index]
 
-        populate_context_for_selected_expense_from_viewall(context, expense)
+        populate_context_for_selected_expense_from_viewall(data, expense)
         await send_expense_view(update, context)
         return ManageBillStates.EDIT_OR_GO_BACK
-
-    if query.data == VIEW_ALL_ENTRIES:
-        group_id = query.message.chat.id
-        expenses = repo.list_expenses(group_id)
-        if not expenses:
-            await query.edit_message_text("No expenses logged yet.")
-            return ConversationHandler.END
-
-        data["expenses"] = expenses
-        data["viewall_page"] = 0
-        data["viewall_is_collapsed"] = False
-        await send_all_expenses(update, context, False)
-        return ManageBillStates.VIEW_EXPENSE
 
     if query.data == VIEW_PAGE_PREV:
         current_page = int(data.get("viewall_page", 0))

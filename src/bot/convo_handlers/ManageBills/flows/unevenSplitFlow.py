@@ -1,4 +1,3 @@
-import json
 from decimal import Decimal
 
 from telegram import Update
@@ -73,7 +72,7 @@ async def expense_custom_split(
         ]
     )
     logger.info("Confirmation form prepared, sending...")
-    print(json.dumps(dict(context.user_data), indent=2, default=str))
+    # print(json.dumps(dict(context.user_data), indent=2, default=str))
     await send_confirmation_form(update, context, False)
     logger.info("Confirmation form sent")
 

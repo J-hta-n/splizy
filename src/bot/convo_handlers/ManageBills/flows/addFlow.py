@@ -47,7 +47,6 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ManageBillStates.EXPENSE_CONFIRM
 
     expense_currency, usernames = get_group_expense_setup(update.message.chat.id)
-    context.user_data["expense_currency"] = expense_currency
     context.user_data["currency"] = expense_currency
     context.user_data["all_participants"] = usernames
     await update.message.reply_text(
@@ -113,7 +112,7 @@ async def expense_split_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     split_type = query.data
-    data = context.user_data
+    data: ManageBillStates = context.user_data
 
     if split_type == "split_equal_all":
         data["is_equal_split"] = True
@@ -180,8 +179,11 @@ async def expense_participants(
     # Check if all participants were selected anyway
     selected_participants = [
         username
-        for idx, username in enumerate(context.user_data["all_participants"])
-        if context.user_data["participant_selections"][idx]
+        for username, is_selected in zip(
+            context.user_data["all_participants"],
+            context.user_data["participant_selections"],
+        )
+        if is_selected
     ]
     if len(selected_participants) == len(context.user_data["all_participants"]):
         context.user_data["split_type"] = "equal_all"
@@ -282,6 +284,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # to overengineer at the moment
         try:
             saved_expense = save_expense(query.message.chat.id, data, payees)
+            # If editing, update context and return to expense view
             if "expense_id" in data:
                 # Then update the context and return to expense view
                 index = context.user_data["expense_index"]
@@ -290,11 +293,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     update, context, "(Expense updated successfully)"
                 )
                 return ManageBillStates.EDIT_OR_GO_BACK
-            # Else create new expense and record its expense_id
-            data["expense_id"] = saved_expense["id"]
-            data["expenses"] = [saved_expense]
-            data["viewall_page"] = 0
-            data["viewall_is_collapsed"] = False
+            # Else create new expense and show viewall option
             await query.edit_message_text(
                 format_saved_expense_summary(saved_expense),
                 reply_markup=get_view_all_entries_markup(),
