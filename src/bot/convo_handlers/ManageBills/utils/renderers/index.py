@@ -248,8 +248,8 @@ async def send_all_expenses(
     if not is_collapsed:
         for idx in range(start_idx, end_idx):
             expense = expenses[idx]
-            title_label = truncate_and_pad_label(expense["title"], width=12)
-            payer_label = truncate_and_pad_label(f"@{expense['paid_by']}", width=8)
+            title_label = truncate_and_pad_label(expense["title"], width=15)
+            payer_label = truncate_and_pad_label(f"@{expense['paid_by']}", width=10)
             keyboard.append(
                 [
                     InlineKeyboardButton(

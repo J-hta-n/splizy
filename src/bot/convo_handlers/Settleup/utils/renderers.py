@@ -41,7 +41,7 @@ def _fmt_money(amount: float, currency: str) -> str:
     return f"{currency}{amount:.2f}"
 
 
-def _fit_user_label(user: str, max_len: int = 16) -> str:
+def _fit_user_label(user: str, max_len: int = 10) -> str:
     label = f"@{user}"
     if len(label) <= max_len:
         return label
@@ -53,6 +53,7 @@ def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
     payers = stats.get("payers", {})
     transfers = stats.get("transfers", {})
     final_spending = stats.get("individual_spending", {})
+    total_spending = stats.get("total_spending", sum(final_spending.values()))
 
     users = sorted(set(payers) | set(transfers) | set(final_spending))
     rows: list[list[str]] = []
@@ -65,6 +66,15 @@ def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
                 _fmt_money(final_spending.get(user, 0.0), currency),
             ]
         )
+
+    rows.append(
+        [
+            "Total",
+            "-",
+            "-",
+            _fmt_money(total_spending, currency),
+        ]
+    )
 
     headers = [
         "User",
@@ -128,6 +138,9 @@ def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
             text = cell.get_text().get_text()
             cell.get_text().set_fontfamily(TABLE_FONT_FAMILY)
             cell.get_text().set_fontsize(TABLE_BODY_FONT_SIZE)
+            if row == max_row:
+                cell.set_facecolor("#131A2C")
+                cell.get_text().set_fontweight("bold")
             if col in (1, 2) and text == "-":
                 cell.get_text().set_color("#FFFFFF")
             elif col in (1, 2) and text.startswith("-"):
