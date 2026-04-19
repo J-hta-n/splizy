@@ -83,6 +83,7 @@ def populate_context_for_selected_expense_from_viewall(
     data["selected_participants"] = [
         entry["user"] for entry in payees if float(entry["amount"]) > 0
     ]
+    data["participant_selections"] = [float(entry["amount"]) > 0 for entry in payees]
     data["custom_amounts"] = amounts
     data["has_mult"] = expense.get("multiplier") is not None
     data["mult_val"] = expense.get("multiplier")

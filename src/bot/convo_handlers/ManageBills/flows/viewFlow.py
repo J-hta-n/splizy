@@ -49,7 +49,7 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         group_id = query.message.chat.id
         expenses = repo.list_expenses(group_id)
         if not expenses:
-            await update.message.reply_text("No expenses logged yet.")
+            await query.edit_message_text("No expenses logged yet.")
             return ConversationHandler.END
         initialise_viewall_context(data, expenses)
         await send_all_expenses(update, context, False)

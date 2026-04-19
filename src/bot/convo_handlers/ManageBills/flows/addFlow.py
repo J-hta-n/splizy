@@ -50,7 +50,8 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     context.user_data["currency"] = expense_currency
     context.user_data["all_participants"] = usernames
     await update.message.reply_text(
-        f"How much is it in {expense_currency}? Enter just the numeric value, eg '50.10'\n\n"
+        f"How much is it in {expense_currency}?\n"
+        f"(Prefix with currency code to override, e.g. 'USD 50.10')\n\n"
     )
 
     return ManageBillStates.EXPENSE_AMOUNT
@@ -62,6 +63,7 @@ async def expense_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(result)  # result is error msg if invalid
         return ManageBillStates.EXPENSE_AMOUNT
     currency, amount = result
+    # Override expense currency if new one given
     if currency:
         context.user_data["currency"] = currency
     context.user_data["amount"] = amount
@@ -283,6 +285,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         # things are simple enough that failures are unlikely / manual rollbacks are manageable, so no need
         # to overengineer at the moment
         try:
+            # Create or update expense
             saved_expense = save_expense(query.message.chat.id, data, payees)
             # If editing, update context and return to expense view
             if "expense_id" in data:
@@ -293,7 +296,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     update, context, "(Expense updated successfully)"
                 )
                 return ManageBillStates.EDIT_OR_GO_BACK
-            # Else create new expense and show viewall option
+            # Else show viewall option
             await query.edit_message_text(
                 format_saved_expense_summary(saved_expense),
                 reply_markup=get_view_all_entries_markup(),
