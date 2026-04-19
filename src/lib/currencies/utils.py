@@ -139,7 +139,7 @@ def build_exchange_rate_summary(
     unique_currencies = sorted(
         {currency.upper() for currency in src_currencies if currency.upper() != dst}
     )
-    lines = [f"Exchange rates from {dst} as of {as_of_date}:"]
+    lines = [f"Exchange rates as of {as_of_date}:"]
 
     if not unique_currencies:
         lines.append(f"All expenses already in {dst}.")

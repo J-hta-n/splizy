@@ -25,6 +25,7 @@ from src.lib.splizy_repo.repo import repo
 
 @group_only
 async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
     group_id = update.message.chat.id
     expenses = repo.list_expenses(group_id)
     if not expenses:
@@ -47,6 +48,9 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     if query.data == VIEW_ALL_ENTRIES:
         group_id = query.message.chat.id
         expenses = repo.list_expenses(group_id)
+        if not expenses:
+            await query.edit_message_text("No expenses logged yet.")
+            return ConversationHandler.END
         initialise_viewall_context(data, expenses)
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE

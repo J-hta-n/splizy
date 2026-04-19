@@ -119,6 +119,8 @@ def get_suggested_payments(
     return (stats, _get_suggested_payments_str(payments, settleup_currency))
 
 
-def build_sgd_exchange_rate_summary(all_expenses: list[ExpenseRow]) -> str:
+def build_exchange_rate_summary_for_settleup(
+    all_expenses: list[ExpenseRow], settleup_currency: str
+) -> str:
     involved_currencies = [expense["currency"] for expense in all_expenses]
-    return build_exchange_rate_summary(involved_currencies, "SGD")
+    return build_exchange_rate_summary(involved_currencies, settleup_currency)

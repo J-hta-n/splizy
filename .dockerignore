@@ -5,4 +5,10 @@ __pycache__/
 .env
 .venv/
 venv/
-DockerFile
+.git/
+.github/
+.pre-commit-config.yaml
+.receipt_parser_usage.json
+receipt-miniapp/
+README.md
+Dockerfile
