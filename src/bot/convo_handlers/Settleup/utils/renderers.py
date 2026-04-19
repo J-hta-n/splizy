@@ -1,10 +1,8 @@
-from functools import lru_cache
 from io import BytesIO
 from math import cos, radians, sin
 
 import matplotlib
 import matplotlib.colors as mcolors
-from matplotlib import font_manager
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
@@ -15,16 +13,9 @@ from src.lib.currencies.utils import get_shorthand_currency
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-
-@lru_cache(maxsize=1)
-def _get_table_font_family() -> str:
-    installed = {font.name for font in font_manager.fontManager.ttflist}
-    preferred = ["Avenir", "Avenir Next", "Helvetica Neue", "Helvetica", "DejaVu Sans"]
-    for family in preferred:
-        if family in installed:
-            return family
-    # DejaVu Sans is bundled with matplotlib and is a safe fallback.
-    return "DejaVu Sans"
+TABLE_FONT_FAMILY = "DejaVu Sans"
+TABLE_BODY_FONT_SIZE = 16
+TABLE_HEADER_FONT_SIZE = 17
 
 
 async def send_stats_table(
@@ -79,7 +70,7 @@ def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
         "User",
         "Amount paid\nfor group",
         "Suggested\ntransfers",
-        "Final individual\nspending",
+        "Final indiv\nspending",
     ]
 
     fig_h = max(4.2, 1.7 + 0.62 * (len(rows) + 1))
@@ -96,7 +87,7 @@ def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
         bbox=[0.04, 0.04, 0.92, 0.92],
     )
     table.auto_set_font_size(False)
-    table.set_fontsize(18)
+    table.set_fontsize(TABLE_BODY_FONT_SIZE)
 
     cell_keys = list(table.get_celld().keys())
     max_row = max(r for r, _ in cell_keys)
@@ -124,9 +115,9 @@ def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
                 # Prevent diagonal anti-aliasing artifacts in the first 3 headers.
                 cell.set_antialiased(False)
             cell.get_text().set_color("#F2FCFF")
-            cell.get_text().set_fontsize(19)
+            cell.get_text().set_fontsize(TABLE_HEADER_FONT_SIZE)
             cell.get_text().set_fontweight("bold")
-            cell.get_text().set_fontfamily(_get_table_font_family())
+            cell.get_text().set_fontfamily(TABLE_FONT_FAMILY)
             cell.get_text().set_ha("center")
             cell.get_text().set_va("center")
             cell.get_text().set_linespacing(1.25)
@@ -135,8 +126,8 @@ def _build_stats_table_image(stats: SettleupStats) -> BytesIO:
             cell.set_height(0.12)
             cell.set_alpha(1.0)
             text = cell.get_text().get_text()
-            cell.get_text().set_fontfamily(_get_table_font_family())
-            cell.get_text().set_fontsize(18)
+            cell.get_text().set_fontfamily(TABLE_FONT_FAMILY)
+            cell.get_text().set_fontsize(TABLE_BODY_FONT_SIZE)
             if col in (1, 2) and text == "-":
                 cell.get_text().set_color("#FFFFFF")
             elif col in (1, 2) and text.startswith("-"):
