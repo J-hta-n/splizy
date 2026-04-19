@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.Settleup.utils.general import (
-    build_sgd_exchange_rate_summary,
+    build_exchange_rate_summary_for_settleup,
     get_suggested_payments,
 )
 from src.bot.convo_handlers.Settleup.utils.renderers import send_stats_table
@@ -21,7 +21,9 @@ async def settleup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     all_expenses = repo.list_expenses(group_id)
     settleup_currency = repo.get_group(group_id).get("settleup_currency", "SGD")
     stats, suggested_payments = get_suggested_payments(all_expenses, settleup_currency)
-    exchange_rates_summary = build_sgd_exchange_rate_summary(all_expenses)
+    exchange_rates_summary = build_exchange_rate_summary_for_settleup(
+        all_expenses, settleup_currency
+    )
 
     await update.message.reply_text(f"{exchange_rates_summary}\n\n{suggested_payments}")
     await send_stats_table(update, context, stats)
