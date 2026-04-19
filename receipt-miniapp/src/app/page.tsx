@@ -506,9 +506,7 @@ export default function Home() {
     <main className="min-h-screen bg-[#eceff3] px-3 py-5 text-slate-900 sm:px-5">
       <div className="mx-auto w-full max-w-2xl space-y-4">
         {!groupId ? (
-          <div className="rounded-3xl border-2 border-rose-300 bg-rose-50 p-4 text-rose-900">
-            Missing group_id in URL.
-          </div>
+          <LoadingSpinner />
         ) : loading ? (
           <Box
             sx={{
