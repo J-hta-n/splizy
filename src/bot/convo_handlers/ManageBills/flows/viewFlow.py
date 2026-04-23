@@ -44,17 +44,24 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return ManageBillStates.VIEW_EXPENSE
     data: ManageBillsUserData = context.user_data
 
-    # Entry point to viewall from addFlow
+    # NOTE: multiple users can trigger this callback, each one with a different context, hence,
+    # safer to refetch all expenses everytime to prevent bugs due to context pollution
+    # TODO: refactor to tag all expenses with a scope_key, if it matches group_id and is up to date,
+    # don't need to refetch; else if either different group_id or is stale, update it
+    data.clear()
+    group_id = update.message.chat.id
+    expenses = repo.list_expenses(group_id)
+    if not expenses:
+        await update.message.reply_text("No expenses logged yet.")
+        return ConversationHandler.END
+    initialise_viewall_context(data, expenses)
+
+    # Entry point from addFlow
     if query.data == VIEW_ALL_ENTRIES:
-        group_id = query.message.chat.id
-        expenses = repo.list_expenses(group_id)
-        if not expenses:
-            await query.edit_message_text("No expenses logged yet.")
-            return ConversationHandler.END
-        initialise_viewall_context(data, expenses)
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE
 
+    # View selected expense
     if query.data.startswith(VIEW_SELECT_PREFIX):
         try:
             index = int(query.data.removeprefix(VIEW_SELECT_PREFIX))
@@ -71,6 +78,7 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await send_expense_view(update, context)
         return ManageBillStates.EDIT_OR_GO_BACK
 
+    # Modify viewall settings
     if query.data == VIEW_PAGE_PREV:
         current_page = int(data.get("viewall_page", 0))
         data["viewall_page"] = max(0, current_page - 1)
