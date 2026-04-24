@@ -10,7 +10,7 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     HIDE_RECEIPT,
     SHOW_RECEIPT,
 )
-from src.bot.convo_handlers.ManageBills.context import get_managebills_user_data
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
     open_miniapp,
@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 
 async def edit_or_go_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    data = get_managebills_user_data(context)
+    data: ManageBillsChatData = context.chat_data
     query = update.callback_query
     await query.answer()
     action = query.data

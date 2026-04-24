@@ -18,7 +18,7 @@ async def delete_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     action = query.data
 
     if action == "confirm_delete":
-        expense_id = context.user_data["expense_id"]
+        expense_id = context.chat_data["expense_id"]
         repo.delete_expense(expense_id)
         await query.edit_message_text(
             "Expense deleted successfully.",

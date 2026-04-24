@@ -1,10 +1,10 @@
 from decimal import Decimal
 
-from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_utils.formatters import get_2dp_str
 
 
-def get_bill_summary(data: ManageBillsUserData) -> str:
+def get_bill_summary(data: ManageBillsChatData) -> str:
     if data["split_type"] == "equal_all":
         split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person)"
     elif data["split_type"] == "equal_some":
@@ -29,7 +29,7 @@ def get_bill_summary(data: ManageBillsUserData) -> str:
     return summary
 
 
-def get_bill_summary_with_receipt(data: ManageBillsUserData) -> str:
+def get_bill_summary_with_receipt(data: ManageBillsChatData) -> str:
     receipt = data["receipt"]
     items = receipt["items"]
     currency = data["currency"]

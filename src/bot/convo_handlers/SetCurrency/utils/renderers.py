@@ -6,7 +6,7 @@ from src.bot.convo_handlers.SetCurrency.callbacks import (
     EDIT_EXPENSE_CURRENCY,
     EDIT_SETTLEUP_CURRENCY,
 )
-from src.bot.convo_handlers.SetCurrency.context import get_setcurrency_user_data
+from src.bot.convo_handlers.SetCurrency.context import SetCurrencyChatData
 from src.lib.currencies.config import ALL_CURRENCY_CODES, COMMON_CURRENCY_CODES
 from src.lib.currencies.utils import build_exchange_rate_line
 from src.lib.splizy_repo.model import GroupRow
@@ -22,7 +22,7 @@ def _build_current_currencies_payload(
     rate_line = build_exchange_rate_line(settleup_currency, expense_currency)
 
     text = (
-        "Please configure the default currencies for bill expenses, and when settling up.\n\n"
+        "Please configure the following default currencies.\n\n"
         f"Expenses: {expense_currency} ({expense_desc})\n"
         f"Settleup: {settleup_currency} ({settleup_desc})\n\n"
         f"{rate_line}"
@@ -46,7 +46,7 @@ def _build_current_currencies_payload(
 async def send_current_currencies(
     update: Update, context: ContextTypes.DEFAULT_TYPE, remarks=None
 ):
-    data = get_setcurrency_user_data(context)
+    data: SetCurrencyChatData = context.chat_data
     group: GroupRow = data["group"]
     text, reply_markup = _build_current_currencies_payload(group)
     if remarks:

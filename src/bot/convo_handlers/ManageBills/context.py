@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Literal, TypedDict, cast
-
-from telegram.ext import ContextTypes
+from typing import Literal, TypedDict
 
 from src.lib.splizy_repo.model import ExpenseId, ExpenseRow, ReceiptData
 
 
-class ManageBillsUserData(TypedDict, total=False):
+class ManageBillsChatData(TypedDict, total=False):
     # View all
     expenses: list[ExpenseRow]
     expense_index: int
@@ -30,9 +28,3 @@ class ManageBillsUserData(TypedDict, total=False):
     currency: str
     receipt: ReceiptData | None
     receipt_detail_message_ids: list[int]
-
-
-def get_managebills_user_data(
-    context: ContextTypes.DEFAULT_TYPE,
-) -> ManageBillsUserData:
-    return cast(ManageBillsUserData, context.user_data)
