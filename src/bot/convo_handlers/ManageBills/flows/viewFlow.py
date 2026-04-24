@@ -42,19 +42,24 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     if not query.data:
         return ManageBillStates.VIEW_EXPENSE
-    data: ManageBillsUserData = context.user_data
 
-    # NOTE: multiple users can trigger this callback, each one with a different context, hence,
-    # safer to refetch all expenses everytime to prevent bugs due to context pollution
-    # TODO: refactor to tag all expenses with a scope_key, if it matches group_id and is up to date,
-    # don't need to refetch; else if either different group_id or is stale, update it
+    data: ManageBillsUserData = context.user_data
+    previous_page = int(data.get("viewall_page", 0))
+    previous_collapsed = bool(data.get("viewall_is_collapsed", False))
+
+    # Always refetch latest expenses to prevent context pollution from different user data objects
     data.clear()
-    group_id = update.message.chat.id
+    group_id = query.message.chat.id
     expenses = repo.list_expenses(group_id)
     if not expenses:
-        await update.message.reply_text("No expenses logged yet.")
+        await query.edit_message_text("No expenses logged yet.")
         return ConversationHandler.END
     initialise_viewall_context(data, expenses)
+
+    # Preserve current list UI state so page/toggle callbacks don't reset.
+    if query.data != VIEW_ALL_ENTRIES:
+        data["viewall_page"] = previous_page
+        data["viewall_is_collapsed"] = previous_collapsed
 
     # Entry point from addFlow
     if query.data == VIEW_ALL_ENTRIES:
