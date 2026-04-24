@@ -3,6 +3,7 @@ from decimal import Decimal
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_confirmation_form,
@@ -21,7 +22,7 @@ async def expense_custom_split(
 
     action = query.data
 
-    data = context.user_data
+    data: ManageBillsChatData = context.chat_data
     if action != "custom_done":
         entity, field = action.split("_")
         if entity.isdigit():
@@ -51,7 +52,7 @@ async def expense_custom_split(
 
     # Custom split done, validate first
     logger.info("Validating custom split selections...")
-    if not any(context.user_data["participant_selections"]):
+    if not any(context.chat_data["participant_selections"]):
         await send_custom_multiselect_users(
             update, context, False, "Please select at least one participant."
         )
@@ -72,7 +73,7 @@ async def expense_custom_split(
         ]
     )
     logger.info("Confirmation form prepared, sending...")
-    # print(json.dumps(dict(context.user_data), indent=2, default=str))
+    # print(json.dumps(dict(context.chat_data), indent=2, default=str))
     await send_confirmation_form(update, context, False)
     logger.info("Confirmation form sent")
 

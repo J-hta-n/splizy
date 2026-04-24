@@ -85,7 +85,7 @@ async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             "If there are any new members, make sure to assign them as admins and tap on Try Again.",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
-        context.user_data["group_id"] = group_id
+        context.chat_data["group_id"] = group_id
         return RegisterUsers.CONFIRM_USERS
 
     # Fetch all group admins
@@ -109,12 +109,12 @@ async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             "No user handles detected. Ensure that they have been set as admins, then tap on Try Again.",
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
-        context.user_data["group_id"] = group_id
+        context.chat_data["group_id"] = group_id
         return RegisterUsers.CONFIRM_USERS
 
     # Store for later confirmation
-    context.user_data["pending_usernames"] = sorted(usernames)
-    context.user_data["group_id"] = group_id
+    context.chat_data["pending_usernames"] = sorted(usernames)
+    context.chat_data["group_id"] = group_id
 
     # Show confirmation message
     await _show_admin_users_confirmation(update, usernames)
@@ -152,8 +152,8 @@ async def confirm_admin_users(
     query = update.callback_query
     await query.answer()
 
-    usernames = context.user_data.get("pending_usernames", [])
-    group_id = context.user_data.get("group_id")
+    usernames = context.chat_data.get("pending_usernames", [])
+    group_id = context.chat_data.get("group_id")
 
     if not usernames or not group_id:
         await query.edit_message_text("Session expired. Please run /register again.")
@@ -184,8 +184,8 @@ async def confirm_admin_users(
     await query.edit_message_text(msg)
 
     # Clean up user data
-    context.user_data.pop("pending_usernames", None)
-    context.user_data.pop("group_id", None)
+    context.chat_data.pop("pending_usernames", None)
+    context.chat_data.pop("group_id", None)
 
     return ConversationHandler.END
 
@@ -195,7 +195,7 @@ async def retry_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
 
-    group_id = context.user_data.get("group_id")
+    group_id = context.chat_data.get("group_id")
 
     if not group_id:
         await query.edit_message_text("Session expired. Please run /register again.")
@@ -223,7 +223,7 @@ async def retry_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return RegisterUsers.CONFIRM_USERS
 
-    context.user_data["pending_usernames"] = sorted(usernames)
+    context.chat_data["pending_usernames"] = sorted(usernames)
     await _show_admin_users_confirmation(update, usernames)
     return RegisterUsers.CONFIRM_USERS
 
@@ -270,7 +270,7 @@ def _render_manual_delete_users_keyboard(
 ) -> InlineKeyboardMarkup:
     keyboard = []
     for username in usernames:
-        prefix = "✅" if username in selected_usernames else "❌"
+        prefix = "❌" if username in selected_usernames else ""
         keyboard.append(
             [
                 InlineKeyboardButton(
@@ -307,9 +307,9 @@ async def begin_manual_delete_users(
         )
         return ConversationHandler.END
 
-    context.user_data["manual_delete_group_id"] = group_id
-    context.user_data["manual_delete_usernames"] = usernames
-    context.user_data["manual_delete_selected"] = []
+    context.chat_data["manual_delete_group_id"] = group_id
+    context.chat_data["manual_delete_usernames"] = usernames
+    context.chat_data["manual_delete_selected"] = []
 
     await query.edit_message_text(
         "Select users to delete, then tap Done to confirm.",
@@ -327,8 +327,8 @@ async def toggle_manual_delete_user(
     action = query.data or ""
     username = action.replace(RegisterUsers.DELETE_USERS_TOGGLE_PREFIX, "", 1)
 
-    usernames = context.user_data.get("manual_delete_usernames", [])
-    selected = set(context.user_data.get("manual_delete_selected", []))
+    usernames = context.chat_data.get("manual_delete_usernames", [])
+    selected = set(context.chat_data.get("manual_delete_selected", []))
 
     if username not in usernames:
         await query.edit_message_text(
@@ -341,7 +341,7 @@ async def toggle_manual_delete_user(
     else:
         selected.add(username)
 
-    context.user_data["manual_delete_selected"] = sorted(selected)
+    context.chat_data["manual_delete_selected"] = sorted(selected)
     await query.edit_message_text(
         "Select users to delete, then tap Done to confirm.",
         reply_markup=_render_manual_delete_users_keyboard(usernames, selected),
@@ -355,9 +355,9 @@ async def confirm_manual_delete_users(
     query = update.callback_query
     await query.answer()
 
-    group_id = context.user_data.get("manual_delete_group_id")
-    selected = sorted(context.user_data.get("manual_delete_selected", []))
-    usernames = context.user_data.get("manual_delete_usernames", [])
+    group_id = context.chat_data.get("manual_delete_group_id")
+    selected = sorted(context.chat_data.get("manual_delete_selected", []))
+    usernames = context.chat_data.get("manual_delete_usernames", [])
 
     if group_id is None or not usernames:
         await query.edit_message_text(
@@ -392,9 +392,9 @@ async def confirm_manual_delete_users(
     if allowed:
         repo.delete_group_users(group_id, allowed)
 
-    context.user_data.pop("manual_delete_group_id", None)
-    context.user_data.pop("manual_delete_usernames", None)
-    context.user_data.pop("manual_delete_selected", None)
+    context.chat_data.pop("manual_delete_group_id", None)
+    context.chat_data.pop("manual_delete_usernames", None)
+    context.chat_data.pop("manual_delete_selected", None)
 
     messages: list[str] = []
     if allowed:
@@ -418,9 +418,9 @@ async def back_manual_delete_users(
     query = update.callback_query
     await query.answer()
 
-    context.user_data.pop("manual_delete_group_id", None)
-    context.user_data.pop("manual_delete_usernames", None)
-    context.user_data.pop("manual_delete_selected", None)
+    context.chat_data.pop("manual_delete_group_id", None)
+    context.chat_data.pop("manual_delete_usernames", None)
+    context.chat_data.pop("manual_delete_selected", None)
 
     await query.edit_message_text("Delete users cancelled.")
     return ConversationHandler.END

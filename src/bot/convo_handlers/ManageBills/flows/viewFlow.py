@@ -9,7 +9,7 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     VIEW_TOGGLE_HIDE,
     VIEW_TOGGLE_SHOW,
 )
-from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
     initialise_viewall_context,
@@ -25,13 +25,13 @@ from src.lib.splizy_repo.repo import repo
 
 @group_only
 async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data.clear()
+    context.chat_data.clear()
     group_id = update.message.chat.id
     expenses = repo.list_expenses(group_id)
     if not expenses:
         await update.message.reply_text("No expenses logged yet.")
         return ConversationHandler.END
-    initialise_viewall_context(context.user_data, expenses)
+    initialise_viewall_context(context.chat_data, expenses)
     await send_all_expenses(update, context)
     return ManageBillStates.VIEW_EXPENSE
 
@@ -39,30 +39,20 @@ async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-
     if not query.data:
         return ManageBillStates.VIEW_EXPENSE
 
-    data: ManageBillsUserData = context.user_data
-    previous_page = int(data.get("viewall_page", 0))
-    previous_collapsed = bool(data.get("viewall_is_collapsed", False))
-
-    # Always refetch latest expenses to prevent context pollution from different user data objects
-    data.clear()
-    group_id = query.message.chat.id
-    expenses = repo.list_expenses(group_id)
-    if not expenses:
-        await query.edit_message_text("No expenses logged yet.")
-        return ConversationHandler.END
-    initialise_viewall_context(data, expenses)
-
-    # Preserve current list UI state so page/toggle callbacks don't reset.
-    if query.data != VIEW_ALL_ENTRIES:
-        data["viewall_page"] = previous_page
-        data["viewall_is_collapsed"] = previous_collapsed
+    data: ManageBillsChatData = context.chat_data
 
     # Entry point from addFlow
     if query.data == VIEW_ALL_ENTRIES:
+        data.clear()
+        group_id = query.message.chat.id
+        expenses = repo.list_expenses(group_id)
+        if not expenses:
+            await query.edit_message_text("No expenses logged yet.")
+            return ConversationHandler.END
+        initialise_viewall_context(data, expenses)
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE
 
@@ -106,6 +96,4 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE
 
-    # Ignore unrelated callback payloads that can be routed here while another
-    # conversation is active in the same chat/user scope.
     return ManageBillStates.VIEW_EXPENSE

@@ -18,12 +18,12 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     VIEW_TOGGLE_HIDE,
     VIEW_TOGGLE_SHOW,
 )
-from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.utils.renderers.bill_summary import (
     get_bill_summary,
     get_bill_summary_with_receipt,
 )
-from src.bot.convo_utils.formatters import get_2dp_str, truncate_and_pad_label
+from src.bot.convo_utils.formatters import get_2dp_str, truncate_label
 from src.bot.convo_utils.pagination import get_page_window
 from src.lib.currencies.utils import get_shorthand_currency
 
@@ -77,7 +77,7 @@ def _chunk_text_by_blocks(text: str, max_len: int = MAX_TELEGRAM_TEXT_LEN) -> li
 async def _delete_receipt_detail_messages(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    message_ids = context.user_data.get(RECEIPT_DETAIL_MESSAGE_IDS_KEY, [])
+    message_ids = context.chat_data.get(RECEIPT_DETAIL_MESSAGE_IDS_KEY, [])
     if not message_ids:
         return
 
@@ -89,13 +89,13 @@ async def _delete_receipt_detail_messages(
             # Ignore messages that are already deleted or no longer deletable.
             continue
 
-    context.user_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = []
+    context.chat_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = []
 
 
 async def send_confirmation_form(
     update: Update, context: ContextTypes.DEFAULT_TYPE, is_new_msg=True
 ):
-    summary = get_bill_summary(context.user_data)
+    summary = get_bill_summary(context.chat_data)
     keyboard = [
         [
             InlineKeyboardButton("Bill name", callback_data="edit_expense_name"),
@@ -121,17 +121,17 @@ async def send_select_user(
     update: Update, context: ContextTypes.DEFAULT_TYPE, new_msg=True
 ):
     keyboard = []
-    for username in context.user_data["all_participants"]:
+    for username in context.chat_data["all_participants"]:
         keyboard.append([InlineKeyboardButton(username, callback_data=username)])
     reply_markup = InlineKeyboardMarkup(keyboard)
     if new_msg:
         await update.message.reply_text(
-            f"Who paid for this expense of {context.user_data['currency']} {context.user_data['amount']}?",
+            f"Who paid for this expense of {context.chat_data['currency']} {context.chat_data['amount']}?",
             reply_markup=reply_markup,
         )
     else:
         await update.callback_query.edit_message_text(
-            f"Who paid for this expense of {context.user_data['currency']} {context.user_data['amount']}?",
+            f"Who paid for this expense of {context.chat_data['currency']} {context.chat_data['amount']}?",
             reply_markup=reply_markup,
         )
 
@@ -142,8 +142,8 @@ async def send_multiselect_users(
     keyboard = []
     for idx, (is_selected, username) in enumerate(
         zip(
-            context.user_data["participant_selections"],
-            context.user_data["all_participants"],
+            context.chat_data["participant_selections"],
+            context.chat_data["all_participants"],
         )
     ):
         prefix = "✅" if is_selected else "❌"
@@ -166,7 +166,7 @@ async def send_custom_multiselect_users(
     is_new_msg=False,
     validation_error=None,
 ):
-    data = context.user_data
+    data: ManageBillsChatData = context.chat_data
     keyboard = []
     for idx, (is_selected, username, amount) in enumerate(
         zip(
@@ -232,7 +232,7 @@ async def send_all_expenses(
 ):
     await _delete_receipt_detail_messages(update, context)
 
-    data: ManageBillsUserData = context.user_data
+    data: ManageBillsChatData = context.chat_data
     expenses = data["expenses"]
     total_expenses = len(expenses)
     current_page, total_pages, start_idx, end_idx = get_page_window(
@@ -248,8 +248,8 @@ async def send_all_expenses(
     if not is_collapsed:
         for idx in range(start_idx, end_idx):
             expense = expenses[idx]
-            title_label = truncate_and_pad_label(expense["title"], width=15)
-            payer_label = truncate_and_pad_label(f"@{expense['paid_by']}", width=10)
+            title_label = truncate_label(expense["title"], width=20)
+            payer_label = truncate_label(f"@{expense['paid_by']}", width=7)
             keyboard.append(
                 [
                     InlineKeyboardButton(
@@ -326,8 +326,8 @@ async def send_expense_view(
 ):
     await _delete_receipt_detail_messages(update, context)
 
-    summary = get_bill_summary(context.user_data)
-    has_receipt = context.user_data["receipt"] is not None
+    summary = get_bill_summary(context.chat_data)
+    has_receipt = context.chat_data["receipt"] is not None
     text = summary if not remarks else f"{summary}\n{remarks}"
     keyboard = [
         [
@@ -350,7 +350,7 @@ async def send_expense_with_receipt_view(
 ):
     await _delete_receipt_detail_messages(update, context)
 
-    summary = get_bill_summary_with_receipt(context.user_data)
+    summary = get_bill_summary_with_receipt(context.chat_data)
     chunks = _chunk_text_by_blocks(summary)
     first_text = chunks[0] if not remarks else f"{chunks[0]}\n{remarks}"
 
@@ -372,4 +372,4 @@ async def send_expense_with_receipt_view(
         )
         detail_message_ids.append(sent.message_id)
 
-    context.user_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = detail_message_ids
+    context.chat_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = detail_message_ids
