@@ -126,7 +126,24 @@ def build_exchange_rate_line(src_currency: str, dst_currency: str) -> str:
 
     try:
         rate = convert(1.0, src, dst)
-        return f"1 {src} = {rate:.2f} {dst} (as of {as_of_date})"
+
+        # If rate is very small, scale up source amount to maintain precision
+        src_amount = 1.0
+        if 0 < rate < 0.1:
+            # Scale up by powers of 10 until rate >= 0.1 for meaningful display
+            scale_factor = 1
+            while rate * scale_factor < 0.1:
+                scale_factor *= 10
+            src_amount = scale_factor
+            rate = rate * scale_factor
+
+        # Format source amount nicely (as integer if possible)
+        if src_amount == int(src_amount):
+            src_amount_str = str(int(src_amount))
+        else:
+            src_amount_str = str(src_amount)
+
+        return f"{src_amount_str} {src} = {rate:.2f} {dst} (as of {as_of_date})"
     except RuntimeError:
         return f"Exchange rate unavailable for {src}/{dst} (as of {as_of_date})"
 

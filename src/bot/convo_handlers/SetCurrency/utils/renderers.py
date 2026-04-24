@@ -22,10 +22,10 @@ def _build_current_currencies_payload(
     rate_line = build_exchange_rate_line(settleup_currency, expense_currency)
 
     text = (
-        "Please configure the following default currencies.\n\n"
+        "-----Default currencies-----\n"
         f"Expenses: {expense_currency} ({expense_desc})\n"
         f"Settleup: {settleup_currency} ({settleup_desc})\n\n"
-        f"{rate_line}"
+        f"{rate_line if settleup_currency != expense_currency else ''}"
     )
 
     keyboard = [
