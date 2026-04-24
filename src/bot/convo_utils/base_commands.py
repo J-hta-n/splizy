@@ -53,5 +53,5 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Operation cancelled.")
-    context.user_data.clear()
+    context.chat_data.clear()
     return ConversationHandler.END

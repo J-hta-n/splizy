@@ -7,7 +7,7 @@ from src.bot.convo_handlers.SetCurrency.callbacks import (
     EDIT_SETTLEUP_CURRENCY,
     CurrencyTargetField,
 )
-from src.bot.convo_handlers.SetCurrency.context import get_setcurrency_user_data
+from src.bot.convo_handlers.SetCurrency.context import SetCurrencyChatData
 from src.bot.convo_handlers.SetCurrency.states import SetCurrencyStates
 from src.bot.convo_handlers.SetCurrency.utils.renderers import (
     send_current_currencies,
@@ -34,7 +34,7 @@ def _target_label(field: str) -> str:
 async def set_currencies_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
-    data = get_setcurrency_user_data(context)
+    data: SetCurrencyChatData = context.chat_data
     group_id = update.message.chat.id
     group = repo.get_group(group_id)
     data["group"] = group
@@ -43,7 +43,7 @@ async def set_currencies_command(
 
 
 async def select_currency(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    data = get_setcurrency_user_data(context)
+    data: SetCurrencyChatData = context.chat_data
     query = update.callback_query
     await query.answer()
     action = query.data or ""
@@ -116,7 +116,7 @@ async def select_currency(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def set_custom_currency(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
-    data = get_setcurrency_user_data(context)
+    data: SetCurrencyChatData = context.chat_data
     target_field = data.get("currency_target_field")
     if target_field not in VALID_TARGET_FIELDS:
         await update.message.reply_text(

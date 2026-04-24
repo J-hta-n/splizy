@@ -1,11 +1,11 @@
 from decimal import Decimal
 
-from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.lib.currencies.utils import get_shorthand_currency
 from src.lib.splizy_repo.model import ExpenseRow, PayeeData
 
 
-def build_payees(data: ManageBillsUserData) -> list[PayeeData]:
+def build_payees(data: ManageBillsChatData) -> list[PayeeData]:
     if data["split_type"] in ["equal_all", "equal_some"]:
         involved = (
             data["all_participants"]
@@ -67,7 +67,7 @@ def format_saved_expense_summary(
 
 
 def populate_context_for_selected_expense_from_viewall(
-    data: ManageBillsUserData, expense: ExpenseRow
+    data: ManageBillsChatData, expense: ExpenseRow
 ):
     payees = expense["payees"]
     participants = [entry["user"] for entry in payees]
@@ -96,7 +96,7 @@ def populate_context_for_selected_expense_from_viewall(
     data["receipt"] = expense["receipt"]
 
 
-def initialise_viewall_context(data: ManageBillsUserData, expenses):
+def initialise_viewall_context(data: ManageBillsChatData, expenses):
     data["expenses"] = expenses
     data["viewall_page"] = 0
     data["viewall_is_collapsed"] = False

@@ -30,9 +30,9 @@ logger = get_logger(__name__)
 async def add_receipt_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
-    context.user_data.clear()
-    context.user_data["receipt"] = parse_receipt(bytes())
-    # logger.info(context.user_data["receipt"].model_dump_json(indent=2))
+    context.chat_data.clear()
+    context.chat_data["receipt"] = parse_receipt(bytes())
+    # logger.info(context.chat_data["receipt"].model_dump_json(indent=2))
     await update.message.reply_text(
         "Please upload a picture of your receipt! (the clearer the better!)"
     )
@@ -74,9 +74,9 @@ async def expense_receipt_upload(
         )
         return ConversationHandler.END
 
-    context.user_data["receipt"] = receipt
+    context.chat_data["receipt"] = receipt
     logger.info(
-        f"Photo receipt parsed successfully:\n {json.dumps(dict(context.user_data['receipt']), indent=2, default=str)}"
+        f"Photo receipt parsed successfully:\n {json.dumps(dict(context.chat_data['receipt']), indent=2, default=str)}"
     )
 
     if receipt.total is None:
@@ -110,17 +110,17 @@ async def expense_receipt_confirm(
     await query.answer()
 
     # If editing, update the expense context and go back to expense view
-    is_editing = "expense_id" in context.user_data
+    is_editing = "expense_id" in context.chat_data
     if is_editing:
-        expense = repo.get_expense(context.user_data["expense_id"])
+        expense = repo.get_expense(context.chat_data["expense_id"])
         if expense is None:
             await query.edit_message_text(
                 "Updated expense could not be loaded, service might be down."
             )
             return ConversationHandler.END
-        index = context.user_data["expense_index"]
-        context.user_data["expenses"][index] = expense
-        populate_context_for_selected_expense_from_viewall(context.user_data, expense)
+        index = context.chat_data["expense_index"]
+        context.chat_data["expenses"][index] = expense
+        populate_context_for_selected_expense_from_viewall(context.chat_data, expense)
         await send_expense_view(update, context)
         return ManageBillStates.EDIT_OR_GO_BACK
 

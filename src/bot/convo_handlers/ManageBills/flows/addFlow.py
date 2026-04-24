@@ -1,7 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
     build_payees,
@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 
 @group_only
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data.clear()
+    context.chat_data.clear()
     await update.message.reply_text(
         "Let's add a new expense! Tell me what this is for? Eg 'Hotpot dinner'"
     )
@@ -40,15 +40,15 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await update.message.reply_text("Name cannot be empty, please try again.")
         return ManageBillStates.EXPENSE_NAME
 
-    context.user_data["expense_name"] = update.message.text
+    context.chat_data["expense_name"] = update.message.text
 
-    if "edit_field" in context.user_data:
+    if "edit_field" in context.chat_data:
         await send_confirmation_form(update, context)
         return ManageBillStates.EXPENSE_CONFIRM
 
     expense_currency, usernames = get_group_expense_setup(update.message.chat.id)
-    context.user_data["currency"] = expense_currency
-    context.user_data["all_participants"] = usernames
+    context.chat_data["currency"] = expense_currency
+    context.chat_data["all_participants"] = usernames
     await update.message.reply_text(
         f"How much is it in {expense_currency}?\n"
         f"(Prefix with currency code to override, e.g. 'USD 50.10')\n\n"
@@ -65,10 +65,10 @@ async def expense_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     currency, amount = result
     # Override expense currency if new one given
     if currency:
-        context.user_data["currency"] = currency
-    context.user_data["amount"] = amount
+        context.chat_data["currency"] = currency
+    context.chat_data["amount"] = amount
 
-    if "edit_field" in context.user_data:
+    if "edit_field" in context.chat_data:
         await send_confirmation_form(update, context)
         return ManageBillStates.EXPENSE_CONFIRM
 
@@ -81,9 +81,9 @@ async def expense_paid_by(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await query.answer()
 
     paid_by = query.data
-    context.user_data["paid_by"] = paid_by
+    context.chat_data["paid_by"] = paid_by
 
-    if "edit_field" in context.user_data:
+    if "edit_field" in context.chat_data:
         await send_confirmation_form(update, context, False)
         return ManageBillStates.EXPENSE_CONFIRM
 
@@ -114,7 +114,7 @@ async def expense_split_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
 
     split_type = query.data
-    data: ManageBillStates = context.user_data
+    data: ManageBillsChatData = context.chat_data
 
     if split_type == "split_equal_all":
         data["is_equal_split"] = True
@@ -163,7 +163,7 @@ async def expense_participants(
     if action != "participants_done":
         # Toggle participant selection
         index = int(action)
-        context.user_data["participant_selections"][index] = not context.user_data[
+        context.chat_data["participant_selections"][index] = not context.chat_data[
             "participant_selections"
         ][index]
 
@@ -171,7 +171,7 @@ async def expense_participants(
         await send_multiselect_users(update, context)
         return ManageBillStates.EXPENSE_PARTICIPANTS
 
-    if not any(context.user_data["participant_selections"]):
+    if not any(context.chat_data["participant_selections"]):
         # Recreate keyboard with validation error
         await send_multiselect_users(
             update, context, "Please select at least one participant."
@@ -182,15 +182,15 @@ async def expense_participants(
     selected_participants = [
         username
         for username, is_selected in zip(
-            context.user_data["all_participants"],
-            context.user_data["participant_selections"],
+            context.chat_data["all_participants"],
+            context.chat_data["participant_selections"],
         )
         if is_selected
     ]
-    if len(selected_participants) == len(context.user_data["all_participants"]):
-        context.user_data["split_type"] = "equal_all"
+    if len(selected_participants) == len(context.chat_data["all_participants"]):
+        context.chat_data["split_type"] = "equal_all"
     else:
-        context.user_data["selected_participants"] = selected_participants
+        context.chat_data["selected_participants"] = selected_participants
     await send_confirmation_form(update, context, False)
     return ManageBillStates.EXPENSE_CONFIRM
 
@@ -204,8 +204,8 @@ async def expense_custom_amount(
         return ManageBillStates.EXPENSE_CUSTOM_AMOUNT
     _, amount = result
 
-    index = context.user_data["index"]
-    context.user_data["custom_amounts"][index] = amount
+    index = context.chat_data["index"]
+    context.chat_data["custom_amounts"][index] = amount
 
     await send_custom_multiselect_users(update, context, True)
     return ManageBillStates.EXPENSE_CUSTOM_SPLIT
@@ -216,7 +216,7 @@ async def expense_multiplier(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not is_valid:
         await update.message.reply_text(result)
         return ManageBillStates.EXPENSE_MULTIPLIER
-    context.user_data["mult_val"] = result
+    context.chat_data["mult_val"] = result
 
     await send_custom_multiselect_users(update, context, True)
     return ManageBillStates.EXPENSE_CUSTOM_SPLIT
@@ -228,13 +228,13 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     action = query.data
 
     if action != "submit_form" and action != "cancel_form":
-        context.user_data["edit_field"] = action
+        context.chat_data["edit_field"] = action
 
     if action == "edit_expense_name":
         await query.edit_message_text("What is the new name for this expense?")
         return ManageBillStates.EXPENSE_NAME
     elif action == "edit_amount":
-        if context.user_data["split_type"] == "custom":
+        if context.chat_data["split_type"] == "custom":
             await send_custom_multiselect_users(update, context)
             return ManageBillStates.EXPENSE_CUSTOM_SPLIT
         else:
@@ -271,7 +271,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
         # If editing, just go back to expense view
-        if "expenses" in context.user_data:
+        if "expenses" in context.chat_data:
             await send_expense_view(update, context)
             return ManageBillStates.EDIT_OR_GO_BACK
         # If not editing, end convo
@@ -279,7 +279,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return ConversationHandler.END
 
     elif action == "submit_form":
-        data: ManageBillsUserData = context.user_data
+        data: ManageBillsChatData = context.chat_data
         payees = build_payees(data)
         # NOTE: look into implementing transactions in the repo/service layer in future if needed; for now
         # things are simple enough that failures are unlikely / manual rollbacks are manageable, so no need
@@ -290,8 +290,8 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             # If editing, update context and return to expense view
             if "expense_id" in data:
                 # Then update the context and return to expense view
-                index = context.user_data["expense_index"]
-                context.user_data["expenses"][index] = saved_expense
+                index = context.chat_data["expense_index"]
+                context.chat_data["expenses"][index] = saved_expense
                 await send_expense_view(
                     update, context, "(Expense updated successfully)"
                 )
@@ -308,7 +308,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await query.edit_message_text(
                 "Failed to add / edit expense, please check logs."
             )
-            context.user_data.clear()
+            context.chat_data.clear()
             return ConversationHandler.END
 
     return ManageBillStates.EXPENSE_CONFIRM

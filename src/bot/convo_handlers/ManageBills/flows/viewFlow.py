@@ -9,7 +9,7 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     VIEW_TOGGLE_HIDE,
     VIEW_TOGGLE_SHOW,
 )
-from src.bot.convo_handlers.ManageBills.context import ManageBillsUserData
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
     initialise_viewall_context,
@@ -25,13 +25,13 @@ from src.lib.splizy_repo.repo import repo
 
 @group_only
 async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data.clear()
+    context.chat_data.clear()
     group_id = update.message.chat.id
     expenses = repo.list_expenses(group_id)
     if not expenses:
         await update.message.reply_text("No expenses logged yet.")
         return ConversationHandler.END
-    initialise_viewall_context(context.user_data, expenses)
+    initialise_viewall_context(context.chat_data, expenses)
     await send_all_expenses(update, context)
     return ManageBillStates.VIEW_EXPENSE
 
@@ -39,25 +39,20 @@ async def view_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-
     if not query.data:
         return ManageBillStates.VIEW_EXPENSE
-    data: ManageBillsUserData = context.user_data
 
-    # NOTE: multiple users can trigger this callback, each one with a different context, hence,
-    # safer to refetch all expenses everytime to prevent bugs due to context pollution
-    # TODO: refactor to tag all expenses with a scope_key, if it matches group_id and is up to date,
-    # don't need to refetch; else if either different group_id or is stale, update it
-    data.clear()
-    group_id = update.message.chat.id
-    expenses = repo.list_expenses(group_id)
-    if not expenses:
-        await update.message.reply_text("No expenses logged yet.")
-        return ConversationHandler.END
-    initialise_viewall_context(data, expenses)
+    data: ManageBillsChatData = context.chat_data
 
     # Entry point from addFlow
     if query.data == VIEW_ALL_ENTRIES:
+        data.clear()
+        group_id = query.message.chat.id
+        expenses = repo.list_expenses(group_id)
+        if not expenses:
+            await query.edit_message_text("No expenses logged yet.")
+            return ConversationHandler.END
+        initialise_viewall_context(data, expenses)
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE
 
@@ -101,6 +96,4 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await send_all_expenses(update, context, False)
         return ManageBillStates.VIEW_EXPENSE
 
-    # Ignore unrelated callback payloads that can be routed here while another
-    # conversation is active in the same chat/user scope.
     return ManageBillStates.VIEW_EXPENSE
