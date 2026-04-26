@@ -248,7 +248,7 @@ async def send_all_expenses(
     if not is_collapsed:
         for idx in range(start_idx, end_idx):
             expense = expenses[idx]
-            title_label = truncate_label(expense["title"], width=20)
+            title_label = truncate_label(expense["title"], width=18)
             payer_label = truncate_label(f"@{expense['paid_by']}", width=7)
             keyboard.append(
                 [

@@ -8,6 +8,7 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.Settleup.utils.general import get_settleup_details
+from src.bot.convo_utils.telegram import get_message_thread_id
 from src.lib.currencies.config import ALL_CURRENCY_CODES
 from src.lib.currencies.utils import (
     convert,
@@ -326,6 +327,7 @@ async def send_settleup_csv(
             document=BytesIO(csv_bytes),
             filename="settleup_breakdown.csv",
             caption="Settle-up breakdown CSV",
+            message_thread_id=get_message_thread_id(update),
         )
     except BadRequest:
         pass
@@ -340,6 +342,7 @@ async def send_settleup_reports(
 ) -> None:
     csv_bytes = build_settleup_csv(all_expenses, settleup_currency, report_generated_at)
     pdf_bytes = build_settleup_pdf(all_expenses, settleup_currency, report_generated_at)
+    message_thread_id = get_message_thread_id(update)
 
     try:
         csv_file = BytesIO(csv_bytes)
@@ -348,10 +351,14 @@ async def send_settleup_reports(
         pdf_file.name = "settleup_breakdown.pdf"
 
         await context.bot.send_document(
-            chat_id=update.effective_chat.id, document=csv_file
+            chat_id=update.effective_chat.id,
+            document=csv_file,
+            message_thread_id=message_thread_id,
         )
         await context.bot.send_document(
-            chat_id=update.effective_chat.id, document=pdf_file
+            chat_id=update.effective_chat.id,
+            document=pdf_file,
+            message_thread_id=message_thread_id,
         )
     except BadRequest:
         pass

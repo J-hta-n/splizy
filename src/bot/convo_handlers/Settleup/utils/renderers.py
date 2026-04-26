@@ -8,6 +8,7 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.Settleup.utils.general import SettleupStats
+from src.bot.convo_utils.telegram import get_message_thread_id
 from src.lib.currencies.utils import get_shorthand_currency
 
 matplotlib.use("Agg")
@@ -25,7 +26,11 @@ async def send_stats_table(
 ):
     image = _build_stats_table_image(stats)
     try:
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=image)
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=image,
+            message_thread_id=get_message_thread_id(update),
+        )
     except BadRequest:
         pass
 
@@ -170,7 +175,11 @@ async def send_stats_chart(
 ):
     chart = _build_spending_chart(stats)
     try:
-        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=chart)
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=chart,
+            message_thread_id=get_message_thread_id(update),
+        )
     except BadRequest:
         pass
 
