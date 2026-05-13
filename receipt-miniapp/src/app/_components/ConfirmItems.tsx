@@ -1,6 +1,7 @@
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -20,179 +21,15 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/utils";
+import {
+  ALL_CURRENCY_CODES,
+  ALL_CURRENCY_CODE_SET,
+  CURRENCY_SHORTHANDS,
+  normalizeCurrencyInput,
+} from "@/lib/currencies";
 import { Receipt } from "../api/expenses/schema";
-
-const ALL_CURRENCY_CODES = [
-  "AED",
-  "AFN",
-  "ALL",
-  "AMD",
-  "ANG",
-  "AOA",
-  "ARS",
-  "AUD",
-  "AWG",
-  "AZN",
-  "BAM",
-  "BBD",
-  "BDT",
-  "BGN",
-  "BHD",
-  "BIF",
-  "BMD",
-  "BND",
-  "BOB",
-  "BRL",
-  "BSD",
-  "BTN",
-  "BWP",
-  "BYN",
-  "BYR",
-  "BZD",
-  "CAD",
-  "CDF",
-  "CHF",
-  "CLF",
-  "CLP",
-  "CNY",
-  "COP",
-  "CRC",
-  "CUC",
-  "CUP",
-  "CVE",
-  "CZK",
-  "DJF",
-  "DKK",
-  "DOP",
-  "DZD",
-  "EGP",
-  "ERN",
-  "ETB",
-  "EUR",
-  "FJD",
-  "FKP",
-  "GBP",
-  "GEL",
-  "GGP",
-  "GHS",
-  "GIP",
-  "GMD",
-  "GNF",
-  "GTQ",
-  "GYD",
-  "HKD",
-  "HNL",
-  "HRK",
-  "HTG",
-  "HUF",
-  "IDR",
-  "ILS",
-  "IMP",
-  "INR",
-  "IQD",
-  "IRR",
-  "ISK",
-  "JEP",
-  "JMD",
-  "JOD",
-  "JPY",
-  "KES",
-  "KGS",
-  "KHR",
-  "KMF",
-  "KPW",
-  "KRW",
-  "KWD",
-  "KYD",
-  "KZT",
-  "LAK",
-  "LBP",
-  "LKR",
-  "LRD",
-  "LSL",
-  "LTL",
-  "LVL",
-  "LYD",
-  "MAD",
-  "MDL",
-  "MGA",
-  "MKD",
-  "MMK",
-  "MNT",
-  "MOP",
-  "MRO",
-  "MUR",
-  "MVR",
-  "MWK",
-  "MXN",
-  "MYR",
-  "MZN",
-  "NAD",
-  "NGN",
-  "NIO",
-  "NOK",
-  "NPR",
-  "NZD",
-  "OMR",
-  "PAB",
-  "PEN",
-  "PGK",
-  "PHP",
-  "PKR",
-  "PLN",
-  "PYG",
-  "QAR",
-  "RON",
-  "RSD",
-  "RUB",
-  "RWF",
-  "SAR",
-  "SBD",
-  "SCR",
-  "SDG",
-  "SEK",
-  "SGD",
-  "SHP",
-  "SLL",
-  "SOS",
-  "SRD",
-  "STD",
-  "SVC",
-  "SYP",
-  "SZL",
-  "THB",
-  "TJS",
-  "TMT",
-  "TND",
-  "TOP",
-  "TRY",
-  "TTD",
-  "TWD",
-  "TZS",
-  "UAH",
-  "UGX",
-  "USD",
-  "UYU",
-  "UZS",
-  "VEF",
-  "VND",
-  "VUV",
-  "WST",
-  "XAF",
-  "XCD",
-  "XDR",
-  "XOF",
-  "XPF",
-  "YER",
-  "ZAR",
-  "ZMK",
-  "ZMW",
-  "ZWL",
-] as const;
-
-const ALL_CURRENCY_CODE_SET = new Set<string>(ALL_CURRENCY_CODES);
 
 const currencyDisplayNames = new Intl.DisplayNames(["en"], {
   type: "currency",
@@ -244,6 +81,20 @@ export function ConfirmItems({
   const [draftName, setDraftName] = useState("");
   const [draftQty, setDraftQty] = useState(0);
   const [draftSubtotal, setDraftSubtotal] = useState("");
+  const [currencyInputValue, setCurrencyInputValue] = useState(
+    receipt.currency,
+  );
+
+  useEffect(() => {
+    const normalized = normalizeCurrencyInput(receipt.currency);
+    setCurrencyInputValue(normalized);
+    if (
+      normalized !== receipt.currency &&
+      ALL_CURRENCY_CODE_SET.has(normalized)
+    ) {
+      onUpdateMeta("currency", normalized);
+    }
+  }, [receipt.currency, onUpdateMeta]);
 
   const toggleDeleteChoice = (index: number) => {
     setPendingDelete((current) =>
@@ -293,11 +144,14 @@ export function ConfirmItems({
     missingFields.push("paid by");
   }
   if (!receipt.currency || !ALL_CURRENCY_CODE_SET.has(receipt.currency)) {
-    missingFields.push("currency");
+    missingFields.push("please choose a valid currency code");
   }
 
   const isStep1Valid = missingFields.length === 0;
-  const validationMessage = `please fill in the following fields: ${missingFields.join(", ")}`;
+  const validationMessage =
+    missingFields.length === 1 && missingFields[0].includes("currency")
+      ? missingFields[0]
+      : `please fill in the following fields: ${missingFields.join(", ")}`;
 
   return (
     <>
@@ -429,21 +283,42 @@ export function ConfirmItems({
             </Table>
 
             <Stack spacing={1.5} mt={2}>
-              <TextField
-                select
-                value={receipt.currency}
-                onChange={(event) =>
-                  onUpdateMeta("currency", event.target.value)
-                }
-                label="Currency"
-                size="small"
-              >
-                {ALL_CURRENCY_CODES.map((code) => (
-                  <MenuItem key={code} value={code}>
-                    {code} ({getCurrencyName(code)})
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Autocomplete
+                options={ALL_CURRENCY_CODES}
+                value={receipt.currency || null}
+                onChange={(event, value) => {
+                  onUpdateMeta("currency", value || "");
+                  setCurrencyInputValue(value || "");
+                }}
+                inputValue={currencyInputValue}
+                onInputChange={(event, value) => {
+                  setCurrencyInputValue(value);
+                  const normalized = normalizeCurrencyInput(value);
+                  onUpdateMeta("currency", normalized);
+                }}
+                noOptionsText="No matching currencies"
+                filterOptions={(options, state) => {
+                  const inputValue = state.inputValue.toUpperCase();
+                  return options.filter((option) => {
+                    const shorthand = CURRENCY_SHORTHANDS[option] || "";
+                    return (
+                      option.includes(inputValue) ||
+                      shorthand.toUpperCase().includes(inputValue)
+                    );
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Currency" size="small" />
+                )}
+                renderOption={(props, option) => {
+                  const { key, ...rest } = props;
+                  return (
+                    <li key={key} {...rest}>
+                      {option} ({getCurrencyName(option)})
+                    </li>
+                  );
+                }}
+              />
               <TextField
                 value={receipt.service_charge}
                 onChange={(event) =>
