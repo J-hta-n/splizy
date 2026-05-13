@@ -33,6 +33,7 @@ import {
 } from "@/lib/utils";
 import { ItemSummary, UserIndivSplit } from "@/lib/types";
 import { Expense, PostExpenseSchema, Receipt } from "./api/expenses/schema";
+import { ALL_CURRENCY_CODE_SET } from "@/lib/currencies";
 import { getPayeesFromReceipt } from "@/lib/db/utils";
 
 const blankReceipt: Receipt = {
@@ -463,13 +464,17 @@ export default function Home() {
   if (!paidBy.trim() || !users.includes(paidBy)) {
     missingStep1Fields.push("paid by");
   }
-  if (!receipt.currency.trim()) {
-    missingStep1Fields.push("currency");
+  if (!receipt.currency || !ALL_CURRENCY_CODE_SET.has(receipt.currency)) {
+    missingStep1Fields.push("please choose a valid currency code");
   }
 
   const isStep1Valid = missingStep1Fields.length === 0;
 
-  const step1GuardErrorMessage = `Please fill in the following fields: ${missingStep1Fields.join(", ")}`;
+  const step1GuardErrorMessage =
+    missingStep1Fields.length === 1 &&
+    missingStep1Fields[0].includes("currency")
+      ? missingStep1Fields[0]
+      : `Please fill in the following fields: ${missingStep1Fields.join(", ")}`;
 
   const goToStep = (nextStep: 1 | 2 | 3) => {
     if (nextStep > 1 && !isStep1Valid) {
