@@ -128,9 +128,9 @@ export default function PrivacyPage() {
                 color="text.secondary"
                 lineHeight={1.75}
               >
-                Splizy does not store Telegram user IDs, Telegram group names,
-                or receipt photos. It also does not access any group messages
-                apart from user inputs to Splizy commands.
+                Splizy does not collect or store Telegram user IDs, Telegram
+                group names, or receipt photos. It also does not access any
+                group messages apart from user inputs to Splizy commands.
               </Typography>
             </Stack>
 
@@ -243,7 +243,7 @@ export default function PrivacyPage() {
               color="text.disabled"
               textAlign="center"
             >
-              Thanks for checking Splizy out, hope this was useful! :)
+              Thanks for checking Splizy out, hope you found this app useful! :)
             </Typography>
           </Stack>
         </CardContent>
