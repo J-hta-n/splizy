@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.lib.splizy_repo.repo import repo
@@ -15,7 +15,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
             "To get started, add me into a telegram group and activate it with /start, then:\n"
             "1. Make all participants admins\n"
             "2. Run /register to auto-detect and register them\n"
-            "3. Configure currencies with /set_currencies\n\n"
+            "3. Configure default currencies with /set_currencies\n\n"
             "And you're all set! Please refer to /help for the full list of available commands. Have a fun trip!"
         )
         return ConversationHandler.END
@@ -26,7 +26,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     cur_users = repo.list_group_users(group_id)
     msg = (
         "Hello there! I help make splitting bills easier for you all with the convenience of telegram groups.\n\n"
-        + "To get started, make all participants admins and then register them with /register, then configure currencies with /set_currencies.\n\n"
+        + "To get started, make all participants admins, register them with /register, then configure default currencies with /set_currencies.\n\n"
         + "Please refer to /help for the full list of available commands. Have a fun trip!"
         if not cur_users
         else f"The following users are already registered: {', '.join([f'@{user['username']}' for user in cur_users])}\nWelcome back to Splizy!"
@@ -35,11 +35,28 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return ConversationHandler.END
 
 
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    help_buttons = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Report bugs / request features",
+                    url="https://github.com/J-hta-n/splizy/issues",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "View privacy policy",
+                    url="https://splizy.vercel.app/privacy",
+                )
+            ],
+        ]
+    )
+
     message = (
         "📋 Here's what Splizy can do!\n\n"
         "/register - Auto-register all group members (ensure they're all admins first)\n"
-        "/register_manual - Manually enter telegram handles instead\n"
         "/set_currencies - Configure default expense and settlement currencies\n"
         "/add - Add a new expense\n"
         "/add_receipt - Add detailed expense from a receipt photo\n"
@@ -47,7 +64,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/settleup - Get suggested transfer amounts\n"
         "/settleup_report - Get details on how suggested transfers were calculated\n"
     )
-    await update.message.reply_text(message)
+    await update.message.reply_text(message, reply_markup=help_buttons)
     return ConversationHandler.END
 
 
