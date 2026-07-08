@@ -22,9 +22,10 @@ def ensure_has_registered_users(handler):
         usernames = get_group_usernames(update.message.chat.id)
         if not usernames:
             await update.message.reply_text(
-                "Please register participants with /register before adding expenses."
+                "Please register participants with /register first before adding expenses."
             )
             return ConversationHandler.END
         context.chat_data["all_participants"] = usernames
+        return await handler(update, context)
 
     return wrapper
