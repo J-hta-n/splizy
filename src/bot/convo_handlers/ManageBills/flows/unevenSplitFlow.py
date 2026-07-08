@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
+from src.bot.convo_handlers.ManageBills.utils.parsers import parse_amount
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_confirmation_form,
     send_custom_multiselect_users,
@@ -78,3 +79,19 @@ async def expense_custom_split(
     logger.info("Confirmation form sent")
 
     return ManageBillStates.EXPENSE_CONFIRM
+
+
+async def expense_custom_amount(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    is_valid, result = parse_amount(update.message.text)
+    if not is_valid:
+        await update.message.reply_text(result)  # result is error msg if invalid
+        return ManageBillStates.EXPENSE_CUSTOM_AMOUNT
+    _, amount = result
+
+    index = context.chat_data["index"]
+    context.chat_data["custom_amounts"][index] = amount
+
+    await send_custom_multiselect_users(update, context, True)
+    return ManageBillStates.EXPENSE_CUSTOM_SPLIT

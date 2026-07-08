@@ -194,22 +194,6 @@ async def expense_participants(
     return ManageBillStates.EXPENSE_CONFIRM
 
 
-async def expense_custom_amount(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
-    is_valid, result = parse_amount(update.message.text)
-    if not is_valid:
-        await update.message.reply_text(result)  # result is error msg if invalid
-        return ManageBillStates.EXPENSE_CUSTOM_AMOUNT
-    _, amount = result
-
-    index = context.chat_data["index"]
-    context.chat_data["custom_amounts"][index] = amount
-
-    await send_custom_multiselect_users(update, context, True)
-    return ManageBillStates.EXPENSE_CUSTOM_SPLIT
-
-
 async def expense_multiplier(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     is_valid, result = parse_multiplier(update.message.text)
     if not is_valid:

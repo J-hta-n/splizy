@@ -10,7 +10,6 @@ from src.bot.convo_handlers.ManageBills.flows.addFlow import (
     add_command,
     expense_amount,
     expense_confirm,
-    expense_custom_amount,
     expense_multiplier,
     expense_name,
     expense_paid_by,
@@ -25,6 +24,7 @@ from src.bot.convo_handlers.ManageBills.flows.receiptFlow import (
     expense_receipt_upload,
 )
 from src.bot.convo_handlers.ManageBills.flows.unevenSplitFlow import (
+    expense_custom_amount,
     expense_custom_split,
 )
 from src.bot.convo_handlers.ManageBills.flows.viewFlow import (
