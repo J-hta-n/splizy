@@ -14,7 +14,7 @@ from src.bot.convo_handlers.ManageBills.utils.renderers import (
     open_miniapp,
     send_expense_view,
 )
-from src.bot.convo_utils.wrappers import group_only
+from src.bot.convo_utils.wrappers import ensure_has_registered_users, group_only
 from src.lib.logger import get_logger
 from src.lib.receipt_parser import Receipt, parse_receipt
 from src.lib.splizy_repo.repo import repo
@@ -27,12 +27,10 @@ logger = get_logger(__name__)
 
 
 @group_only
+@ensure_has_registered_users
 async def add_receipt_command(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
-    context.chat_data.clear()
-    context.chat_data["receipt"] = parse_receipt(bytes())
-    # logger.info(context.chat_data["receipt"].model_dump_json(indent=2))
     await update.message.reply_text(
         "Please upload a picture of your receipt! (the clearer the better!)"
     )
@@ -69,9 +67,7 @@ async def expense_receipt_upload(
         receipt: Receipt = parse_receipt(bytes(image_bytes))
     except Exception as e:
         logger.error(f"Receipt parsing failed: {e}")
-        await update.message.reply_text(
-            "Could not parse the receipt image as service might be down. Please try again later or ping the admin at @jhtzz."
-        )
+        await update.message.reply_text(f"Could not parse the receipt image. {e}")
         return ConversationHandler.END
 
     context.chat_data["receipt"] = receipt

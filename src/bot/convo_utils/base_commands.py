@@ -35,7 +35,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return ConversationHandler.END
 
 
-
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     help_buttons = InlineKeyboardMarkup(
         [

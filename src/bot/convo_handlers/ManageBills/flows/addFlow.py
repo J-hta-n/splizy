@@ -19,16 +19,16 @@ from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_multiselect_users,
     send_select_user,
 )
-from src.bot.convo_utils.wrappers import group_only
+from src.bot.convo_utils.wrappers import ensure_has_registered_users, group_only
 from src.lib.logger import get_logger
-from src.lib.splizy_repo.service import get_group_expense_setup, save_expense
+from src.lib.splizy_repo.service import get_group_expense_currency, save_expense
 
 logger = get_logger(__name__)
 
 
 @group_only
+@ensure_has_registered_users
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.chat_data.clear()
     await update.message.reply_text(
         "Let's add a new expense! Tell me what this is for? Eg 'Hotpot dinner'"
     )
@@ -46,9 +46,8 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await send_confirmation_form(update, context)
         return ManageBillStates.EXPENSE_CONFIRM
 
-    expense_currency, usernames = get_group_expense_setup(update.message.chat.id)
+    expense_currency = get_group_expense_currency(update.message.chat.id)
     context.chat_data["currency"] = expense_currency
-    context.chat_data["all_participants"] = usernames
     await update.message.reply_text(
         f"How much is it in {expense_currency}?\n"
         f"(Prefix with currency code to override, e.g. 'USD 50.10')\n\n"
