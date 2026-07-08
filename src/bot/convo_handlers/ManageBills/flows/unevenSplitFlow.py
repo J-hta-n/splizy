@@ -32,6 +32,8 @@ async def expense_custom_split(
                 data["participant_selections"][index] = not data[
                     "participant_selections"
                 ][index]
+                if data["custom_amounts"][index] <= 0:
+                    data["custom_amounts"][index] = Decimal("1")
                 await send_custom_multiselect_users(update, context)
                 return ManageBillStates.EXPENSE_CUSTOM_SPLIT
             elif field == "amount":
@@ -61,6 +63,7 @@ async def expense_custom_split(
 
     logger.info("Custom selection validated. Preparing confirmation form...")
     has_mult, mult_val = data["has_mult"], data["mult_val"]
+    mult_decimal = Decimal(str(mult_val)) if has_mult else Decimal("1")
     data["selected_participants"] = [
         username
         for idx, username in enumerate(data["all_participants"])
@@ -68,7 +71,7 @@ async def expense_custom_split(
     ]
     data["amount"] = sum(
         [
-            (amount * Decimal(mult_val) if has_mult else amount)
+            (Decimal(str(amount)) * mult_decimal)
             for idx, amount in enumerate(data["custom_amounts"])
             if data["participant_selections"][idx]
         ]
