@@ -205,13 +205,14 @@ async def send_custom_multiselect_users(
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     subtotal = sum(
-        amount
+        Decimal(str(amount))
         for idx, amount in enumerate(data["custom_amounts"])
         if data["participant_selections"][idx]
     )
+    mult_decimal = Decimal(str(mult_val)) if has_mult else Decimal("1")
     text = (
         f"👥 Select participants and specify the custom amount paid in {data['currency']}.\n"
-        f"Current total = {data['currency']} {get_2dp_str(subtotal)}{f' (*{mult_val} = {get_2dp_str(subtotal*Decimal(mult_val))})' if has_mult else ''}\n\n"
+        f"Current total = {data['currency']} {get_2dp_str(subtotal)}{f' (*{mult_val} = {get_2dp_str(subtotal * mult_decimal)})' if has_mult else ''}\n\n"
         "Tap on the left to toggle selection, and on the right to specify the amount. "
         "You can also specify the service charge multiplier at the bottom, eg 1.19.\n\n"
         "NOTE: current total will override initial total if they don't tally.\n"

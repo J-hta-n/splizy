@@ -71,7 +71,7 @@ def populate_context_for_selected_expense_from_viewall(
 ):
     payees = expense["payees"]
     participants = [entry["user"] for entry in payees]
-    amounts = [float(entry["amount"]) for entry in payees]
+    amounts = [Decimal(str(entry["amount"])) for entry in payees]
 
     data["all_participants"] = participants
     data["is_equal_split"] = expense["is_equal_split"]
