@@ -5,6 +5,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
+from src.bot.convo_handlers.ManageBills.utils.parsers import parse_amount
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_confirmation_form,
     send_custom_multiselect_users,
@@ -31,6 +32,8 @@ async def expense_custom_split(
                 data["participant_selections"][index] = not data[
                     "participant_selections"
                 ][index]
+                if data["custom_amounts"][index] <= 0:
+                    data["custom_amounts"][index] = Decimal("1")
                 await send_custom_multiselect_users(update, context)
                 return ManageBillStates.EXPENSE_CUSTOM_SPLIT
             elif field == "amount":
@@ -60,6 +63,7 @@ async def expense_custom_split(
 
     logger.info("Custom selection validated. Preparing confirmation form...")
     has_mult, mult_val = data["has_mult"], data["mult_val"]
+    mult_decimal = Decimal(str(mult_val)) if has_mult else Decimal("1")
     data["selected_participants"] = [
         username
         for idx, username in enumerate(data["all_participants"])
@@ -67,7 +71,7 @@ async def expense_custom_split(
     ]
     data["amount"] = sum(
         [
-            (amount * Decimal(mult_val) if has_mult else amount)
+            (Decimal(str(amount)) * mult_decimal)
             for idx, amount in enumerate(data["custom_amounts"])
             if data["participant_selections"][idx]
         ]
@@ -78,3 +82,19 @@ async def expense_custom_split(
     logger.info("Confirmation form sent")
 
     return ManageBillStates.EXPENSE_CONFIRM
+
+
+async def expense_custom_amount(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    is_valid, result = parse_amount(update.message.text)
+    if not is_valid:
+        await update.message.reply_text(result)  # result is error msg if invalid
+        return ManageBillStates.EXPENSE_CUSTOM_AMOUNT
+    _, amount = result
+
+    index = context.chat_data["index"]
+    context.chat_data["custom_amounts"][index] = amount
+
+    await send_custom_multiselect_users(update, context, True)
+    return ManageBillStates.EXPENSE_CUSTOM_SPLIT

@@ -6,6 +6,7 @@ from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
     build_payees,
     format_saved_expense_summary,
+    populate_context_for_selected_expense_from_viewall,
 )
 from src.bot.convo_handlers.ManageBills.utils.parsers import (
     parse_amount,
@@ -194,22 +195,6 @@ async def expense_participants(
     return ManageBillStates.EXPENSE_CONFIRM
 
 
-async def expense_custom_amount(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
-    is_valid, result = parse_amount(update.message.text)
-    if not is_valid:
-        await update.message.reply_text(result)  # result is error msg if invalid
-        return ManageBillStates.EXPENSE_CUSTOM_AMOUNT
-    _, amount = result
-
-    index = context.chat_data["index"]
-    context.chat_data["custom_amounts"][index] = amount
-
-    await send_custom_multiselect_users(update, context, True)
-    return ManageBillStates.EXPENSE_CUSTOM_SPLIT
-
-
 async def expense_multiplier(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     is_valid, result = parse_multiplier(update.message.text)
     if not is_valid:
@@ -269,8 +254,13 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
-        # If editing, just go back to expense view
+        # If editing, revert changes and go back to expense view
         if "expenses" in context.chat_data:
+            index = context.chat_data["expense_index"]
+            expense = context.chat_data["expenses"][index]
+            populate_context_for_selected_expense_from_viewall(
+                context.chat_data, expense
+            )
             await send_expense_view(update, context)
             return ManageBillStates.EDIT_OR_GO_BACK
         # If not editing, end convo
