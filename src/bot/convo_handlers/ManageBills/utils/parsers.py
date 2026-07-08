@@ -27,6 +27,9 @@ def parse_amount(input: str) -> ParsedResult[tuple[Optional[str], Decimal]]:
     except InvalidOperation:
         return False, "Please enter a valid numeric amount."
 
+    if parsed_amount <= 0:
+        return False, "Please enter an amount greater than 0."
+
     if currency is None:
         return True, (None, parsed_amount)
 
