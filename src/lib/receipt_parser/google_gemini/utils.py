@@ -32,6 +32,30 @@ def _extract_text_from_gemini_response(response_payload: Dict[str, Any]) -> str:
     raise RuntimeError("Gemini returned an empty response")
 
 
+def _extract_gemini_error_message(error_body: str) -> str:
+    stripped_body = error_body.strip()
+    if not stripped_body:
+        return "No error body returned"
+
+    try:
+        payload = json.loads(stripped_body)
+    except json.JSONDecodeError:
+        return stripped_body
+
+    if not isinstance(payload, dict):
+        return stripped_body
+
+    error = payload.get("error")
+    if not isinstance(error, dict):
+        return stripped_body
+
+    message = error.get("message")
+    if isinstance(message, str) and message.strip():
+        return message.strip()
+
+    return stripped_body
+
+
 def extract_receipt_payload_with_gemini_vision(image_bytes: bytes) -> Dict[str, Any]:
     if not config.GEMINI_API_KEY:
         raise RuntimeError(
@@ -90,8 +114,13 @@ def extract_receipt_payload_with_gemini_vision(image_bytes: bytes) -> Dict[str, 
             response_payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         error_body = exc.read().decode("utf-8", errors="replace")
+        api_message = _extract_gemini_error_message(error_body)
+        if exc.code == 503:
+            raise RuntimeError(
+                f"Gemini Vision API is down (status 503): {api_message}"
+            ) from exc
         raise RuntimeError(
-            f"Gemini Vision API request failed with status {exc.code}: {error_body}"
+            f"Gemini Vision API request failed with status {exc.code}: {api_message}"
         ) from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"Gemini Vision API request failed: {exc}") from exc
