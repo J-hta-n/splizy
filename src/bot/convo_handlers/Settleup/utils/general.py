@@ -2,8 +2,9 @@ from collections import defaultdict
 from typing import TypeAlias, TypedDict
 
 from src.lib.currencies.utils import (
-    build_exchange_rate_summary,
+    build_exchange_rate_line,
     convert,
+    get_exchange_rates_as_of_date,
     get_shorthand_currency,
 )
 from src.lib.splizy_repo.model import CurrencyCode, ExpenseRow
@@ -122,5 +123,25 @@ def get_suggested_payments(
 def build_exchange_rate_summary_for_settleup(
     all_expenses: list[ExpenseRow], settleup_currency: str
 ) -> str:
-    involved_currencies = [expense["currency"] for expense in all_expenses]
-    return build_exchange_rate_summary(involved_currencies, settleup_currency)
+    dst = settleup_currency.upper()
+    as_of_date = get_exchange_rates_as_of_date()
+    unique_currencies = sorted(
+        {
+            expense["currency"].upper()
+            for expense in all_expenses
+            if expense["currency"].upper() != dst
+        }
+    )
+    lines = [f"Exchange rates as of {as_of_date}:"]
+
+    if not unique_currencies:
+        lines.append(f"All expenses already in {dst}.")
+        return "\n".join(lines)
+
+    for src in unique_currencies:
+        line = build_exchange_rate_line(dst, src)
+        if " (as of " in line:
+            line = line.rsplit(" (as of ", 1)[0]
+        lines.append(line)
+
+    return "\n".join(lines)
