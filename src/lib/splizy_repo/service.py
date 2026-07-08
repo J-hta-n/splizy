@@ -12,18 +12,17 @@ from src.lib.splizy_repo.model import (
     TempReceiptUpdate,
 )
 from src.lib.splizy_repo.repo import repo
-from src.lib.splizy_repo.utils import (
-    build_expense_payload,
-    build_temp_receipt_payload,
-    get_usernames,
-)
+from src.lib.splizy_repo.utils import build_expense_payload, build_temp_receipt_payload
 
 
-def get_group_expense_setup(group_id: GroupId) -> tuple[str, list[str]]:
+def get_group_expense_currency(group_id: GroupId) -> str:
     group = repo.get_group(group_id)
+    return (group.get("expense_currency") if group else None) or "SGD"
+
+
+def get_group_usernames(group_id: GroupId) -> list[str]:
     users = repo.list_group_users(group_id)
-    expense_currency = (group.get("expense_currency") if group else None) or "SGD"
-    return expense_currency, get_usernames(users)
+    return [user["username"] for user in users]
 
 
 def save_expense(
