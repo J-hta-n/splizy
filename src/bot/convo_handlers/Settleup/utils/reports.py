@@ -11,6 +11,7 @@ from src.bot.convo_handlers.Settleup.utils.general import get_settleup_details
 from src.bot.convo_utils.telegram import get_message_thread_id
 from src.lib.currencies.config import ALL_CURRENCY_CODES
 from src.lib.currencies.utils import (
+    build_exchange_rate_line,
     convert,
     get_shorthand_currency,
     read_cached_exchange_rates,
@@ -91,7 +92,7 @@ def _build_metadata_lines(
 
     generated_at_utc = report_generated_at.astimezone(timezone.utc).strftime("%d %b %Y")
     lines.append(
-        f"Exchange rates as of {rates_date_friendly} (report generated: {generated_at_utc})."
+        f"Exchange rates as of {rates_date_friendly} (report generated on {generated_at_utc})."
     )
 
     involved_currencies = sorted(
@@ -109,13 +110,10 @@ def _build_metadata_lines(
         return lines
 
     for src_currency in involved_currencies:
-        try:
-            rate = convert(1.0, settle_currency, src_currency)
-            lines.append(f"1 {settle_currency} = {rate:.2f} {src_currency}")
-        except RuntimeError:
-            lines.append(
-                f"1 {settle_currency} = unavailable {src_currency} (missing exchange rate)"
-            )
+        line = build_exchange_rate_line(settle_currency, src_currency)
+        if " (as of " in line:
+            line = line.rsplit(" (as of ", 1)[0]
+        lines.append(line)
 
     return lines
 
@@ -198,7 +196,6 @@ def build_settleup_csv(
     writer.writerow([])
     writer.writerow(["BEFORE SETTLEUP"])
     writer.writerow(headers)
-    before_row = [u for u in users]
     writer.writerow(["net", *[_fmt_signed_raw(before_balances[u]) for u in users]])
 
     writer.writerow([])
@@ -246,7 +243,9 @@ def build_settleup_pdf(
     ax = fig.add_subplot(111)
     ax.axis("off")
 
-    text_y = 0.98
+    line_spacing_in = 0.22
+    table_gap_in = 0.16
+    text_y = 1.0 - (line_spacing_in / fig_h)
 
     # Add metadata at top
     for line in metadata_lines:
@@ -259,7 +258,7 @@ def build_settleup_pdf(
             ha="left",
             fontsize=9,
         )
-        text_y -= 0.035
+        text_y -= line_spacing_in / fig_h
 
     # Combine all table data with section labels
     all_table_rows = []
@@ -272,23 +271,25 @@ def build_settleup_pdf(
     all_table_rows.append(["" for _ in headers])
 
     # Before section label
-    all_table_rows.append(["[BEFORE SETTLEUP]"] + ["" for _ in users])
+    all_table_rows.append(["[BEFORE SETTLEUP]"] + ["" for _ in headers[1:]])
     all_table_rows.append(before_row)
 
     # Transfers section label
-    all_table_rows.append(["[SUGGESTED TRANSFERS]"] + ["" for _ in users])
+    all_table_rows.append(["[SUGGESTED TRANSFERS]"] + ["" for _ in headers[1:]])
     for transfer_row in transfer_data:
         all_table_rows.append(transfer_row)
 
     # After section label
-    all_table_rows.append(["[AFTER SETTLEUP]"] + ["" for _ in users])
+    all_table_rows.append(["[AFTER SETTLEUP]"] + ["" for _ in headers[1:]])
     all_table_rows.append(after_row)
 
-    table_y_top = text_y - 0.01
+    table_top = text_y - (table_gap_in / fig_h)
+    table_bottom = 0.02
+    table_height = max(0.1, table_top - table_bottom)
     table = ax.table(
         cellText=all_table_rows,
         colLabels=headers,
-        bbox=[0.0, 0.02, 1.0, table_y_top],
+        bbox=[0.0, table_bottom, 1.0, table_height],
         cellLoc="left",
         colLoc="left",
     )
@@ -300,6 +301,7 @@ def build_settleup_pdf(
     for (row_idx, col_idx), cell in table.get_celld().items():
         if row_idx == 0 or col_idx == 0:  # Headers and row labels
             continue
+
         cell_text = cell.get_text().get_text().strip()
         if cell_text.startswith("-"):
             cell.get_text().set_color("#C62828")  # Red for negative (paid/owed)
