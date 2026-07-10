@@ -129,7 +129,7 @@ async def expense_split_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Since entire keyboard has to be rebuilt on every callback, state is managed with a bool array to minimise latency
         # and to preserve ordering of the inline buttons, as opposed to using a adding/removing strings in a string array
         if "participant_selections" not in data:
-            data["participant_selections"] = [True] * len(data["all_participants"])
+            data["participant_selections"] = [False] * len(data["all_participants"])
         await send_multiselect_users(update, context)
         return ManageBillStates.EXPENSE_PARTICIPANTS
     elif split_type == "split_custom":
