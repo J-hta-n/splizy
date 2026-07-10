@@ -153,7 +153,7 @@ async def send_multiselect_users(
     keyboard.append([InlineKeyboardButton("Done", callback_data="participants_done")])
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text(
-        "👥 Select participants (all selected by default).\n"
+        "👥 Please select participants involved.\n"
         "Tap on a user to toggle selection. Tap 'Done' when finished.\n"
         f"{validation_error if validation_error else ''}",
         reply_markup=reply_markup,
