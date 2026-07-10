@@ -307,6 +307,28 @@ export function ConfirmItems({
               </TableBody>
             </Table>
 
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              mt={2.5}
+              justifyContent="space-between"
+            >
+              <Button
+                color="secondary"
+                variant="outlined"
+                onClick={openAddModal}
+              >
+                Add new entry
+              </Button>
+              <Button
+                color={deleteMode ? "error" : "secondary"}
+                variant="outlined"
+                onClick={handleDeleteAction}
+              >
+                {deleteMode ? "Confirm deletion" : "Delete entries"}
+              </Button>
+            </Stack>
+
             <Stack spacing={1.5} mt={2}>
               <Autocomplete
                 options={ALL_CURRENCY_CODES}
@@ -400,18 +422,8 @@ export function ConfirmItems({
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
               mt={2.5}
-              justifyContent="space-between"
+              mb={5}
             >
-              <Button variant="outlined" onClick={openAddModal}>
-                Add new entry
-              </Button>
-              <Button
-                color={deleteMode ? "error" : "inherit"}
-                variant="outlined"
-                onClick={handleDeleteAction}
-              >
-                {deleteMode ? "Confirm deletion" : "Delete entries"}
-              </Button>
               <Button
                 variant="contained"
                 onClick={onNext}

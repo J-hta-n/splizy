@@ -63,7 +63,8 @@ export const getItemIndivAssignment = (indiv: ReceiptItem["indiv"]) => {
     return "No assignments yet";
   }
 
-  return indiv
-    .map((entry) => `${entry.username} (${entry.quantity})`)
-    .join(", ");
+  return (
+    "Assigned to: " +
+    indiv.map((entry) => `${entry.username} (${entry.quantity})`).join(", ")
+  );
 };
