@@ -57,3 +57,13 @@ export const normaliseSharedItems = (receipt: Receipt, users: string[]) => {
     };
   });
 };
+
+export const getItemIndivAssignment = (indiv: ReceiptItem["indiv"]) => {
+  if (indiv.length === 0) {
+    return "No assignments yet";
+  }
+
+  return indiv
+    .map((entry) => `${entry.username} (${entry.quantity})`)
+    .join(", ");
+};
