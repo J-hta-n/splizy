@@ -321,7 +321,11 @@ export default function Home() {
       if (field === "currency") {
         next.currency = value;
       } else {
-        next[field] = Number(value);
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+          return cur;
+        }
+        next[field] = Math.max(0, parsed);
       }
       next.total = next.subtotal + next.service_charge + next.gst;
       return next;

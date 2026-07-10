@@ -191,18 +191,18 @@ export function ConfirmItems({
             <Typography variant="body2" mt={1}>
               Please double check the payer and total cost for this bill
             </Typography>
+            {step1ValidationMessage ? (
+              <Typography
+                color="error.main"
+                mt={1.25}
+                variant="body2"
+                sx={{ whiteSpace: "pre-line" }}
+              >
+                {step1ValidationMessage}
+              </Typography>
+            ) : null}
           </CardContent>
         </Card>
-
-        {step1ValidationMessage ? (
-          <Typography
-            color="error.main"
-            variant="body2"
-            sx={{ whiteSpace: "pre-line" }}
-          >
-            {step1ValidationMessage}
-          </Typography>
-        ) : null}
 
         <Card variant="outlined">
           <CardContent>
@@ -367,25 +367,39 @@ export function ConfirmItems({
                 }}
               />
               <TextField
-                value={receipt.service_charge}
+                value={
+                  receipt.service_charge === 0
+                    ? ""
+                    : String(receipt.service_charge)
+                }
                 onChange={(event) =>
                   onUpdateMeta("service_charge", event.target.value)
                 }
                 label="Service charge"
-                type="number"
+                type="text"
+                placeholder="0.00"
                 size="small"
                 slotProps={{
-                  input: { inputProps: { min: 0, step: "0.01" } },
+                  input: {
+                    inputProps: {
+                      inputMode: "decimal",
+                    },
+                  },
                 }}
               />
               <TextField
-                value={receipt.gst}
+                value={receipt.gst === 0 ? "" : String(receipt.gst)}
                 onChange={(event) => onUpdateMeta("gst", event.target.value)}
                 label="GST / tax"
-                type="number"
+                type="text"
+                placeholder="0.00"
                 size="small"
                 slotProps={{
-                  input: { inputProps: { min: 0, step: "0.01" } },
+                  input: {
+                    inputProps: {
+                      inputMode: "decimal",
+                    },
+                  },
                 }}
               />
             </Stack>
@@ -417,7 +431,16 @@ export function ConfirmItems({
                 Total: {formatMoney(receipt.total)} {receipt.currency}
               </Typography>
             </Box>
-
+            {step1ValidationMessage ? (
+              <Typography
+                color="error.main"
+                variant="body2"
+                mt={1.25}
+                sx={{ whiteSpace: "pre-line" }}
+              >
+                {step1ValidationMessage}
+              </Typography>
+            ) : null}
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
@@ -432,17 +455,6 @@ export function ConfirmItems({
                 Proceed to step 2
               </Button>
             </Stack>
-            {step1ValidationMessage ? (
-              <Typography
-                color="error.main"
-                variant="body2"
-                mt={1.25}
-                mb={2}
-                sx={{ whiteSpace: "pre-line" }}
-              >
-                {step1ValidationMessage}
-              </Typography>
-            ) : null}
           </CardContent>
         </Card>
       </Stack>
