@@ -60,7 +60,6 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [step1GuardError, setStep1GuardError] = useState<string | null>(null);
   const [initialFetchedTotal, setInitialFetchedTotal] = useState<number | null>(
     null,
   );
@@ -73,6 +72,11 @@ export default function Home() {
     string | null
   >(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [mismatchProceedConfirmOpen, setMismatchProceedConfirmOpen] =
+    useState(false);
+  const [mismatchProceedTargetStep, setMismatchProceedTargetStep] = useState<
+    2 | 3
+  >(2);
   const [submittedSuccessfully, setSubmittedSuccessfully] = useState(false);
 
   const recomputeReceiptTotals = (input: Receipt): Receipt => {
@@ -317,21 +321,37 @@ export default function Home() {
       if (field === "currency") {
         next.currency = value;
       } else {
-        next[field] = Number(value);
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+          return cur;
+        }
+        next[field] = Math.max(0, parsed);
       }
       next.total = next.subtotal + next.service_charge + next.gst;
       return next;
     });
   };
 
-  const addStep1Item = () => {
-    setReceipt((cur) => ({
-      ...cur,
-      items: [
+  const addStep1Item = (item: {
+    name: string;
+    quantity: number;
+    subtotal: number;
+  }) => {
+    setReceipt((cur) => {
+      const items = [
         ...cur.items,
-        { name: "<New Item>", quantity: 1, subtotal: 1, indiv: [], shared: [] },
-      ],
-    }));
+        {
+          name: item.name,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+          indiv: [],
+          shared: [],
+        },
+      ];
+      const subtotal = items.reduce((sum, entry) => sum + entry.subtotal, 0);
+      const total = subtotal + cur.service_charge + cur.gst;
+      return { ...cur, items, subtotal, total };
+    });
   };
 
   const removeStep1Items = (indices: number[]) => {
@@ -360,12 +380,11 @@ export default function Home() {
       };
       nextItems[itemIndex] = editItem;
 
-      const assignmentIndex = editItem.indiv.findIndex(
+      const userIndex = editItem.indiv.findIndex(
         (entry) => entry.username === selectedUser,
       );
 
-      const curQty =
-        assignmentIndex >= 0 ? editItem.indiv[assignmentIndex].quantity : 0;
+      const curQty = userIndex >= 0 ? editItem.indiv[userIndex].quantity : 0;
       const othersQty = editItem.indiv
         .filter((entry) => entry.username !== selectedUser)
         .reduce((sum, entry) => sum + entry.quantity, 0);
@@ -376,9 +395,9 @@ export default function Home() {
         editItem.indiv = editItem.indiv.filter(
           (entry) => entry.username !== selectedUser,
         );
-      } else if (assignmentIndex >= 0) {
-        editItem.indiv[assignmentIndex] = {
-          ...editItem.indiv[assignmentIndex],
+      } else if (userIndex >= 0) {
+        editItem.indiv[userIndex] = {
+          ...editItem.indiv[userIndex],
           quantity: nextQty,
         };
       } else {
@@ -453,7 +472,7 @@ export default function Home() {
     setSubmitConfirmOpen(false);
   };
 
-  const selectedItemAssignments =
+  const selectedUserItemAssignments =
     userIndivSplits.find((entry) => entry.username === selectedUserStep2)
       ?.indivSplit ?? null;
 
@@ -468,51 +487,65 @@ export default function Home() {
     missingStep1Fields.push("please choose a valid currency code");
   }
 
-  const isStep1Valid = missingStep1Fields.length === 0;
-
-  const step1GuardErrorMessage =
-    missingStep1Fields.length === 1 &&
-    missingStep1Fields[0].includes("currency")
-      ? missingStep1Fields[0]
-      : `Please fill in the following fields: ${missingStep1Fields.join(", ")}`;
-
-  const goToStep = (nextStep: 1 | 2 | 3) => {
-    if (nextStep > 1 && !isStep1Valid) {
-      setStep1GuardError(step1GuardErrorMessage);
-      setStep(1);
-      return;
-    }
-
-    setStep1GuardError(null);
-    setStep(nextStep);
-  };
-
-  useEffect(() => {
-    if (isStep1Valid) {
-      setStep1GuardError(null);
-    }
-  }, [isStep1Valid]);
-
-  const stepLabels = [
-    { step: 1, title: "Confirm" },
-    { step: 2, title: "Individual" },
-    { step: 3, title: "Shared" },
-  ];
-
   const hasInitialTotalMismatch =
     initialFetchedTotal !== null &&
     Math.abs(initialFetchedTotal - receipt.total) > 0.009;
 
   const totalMismatchWarning = hasInitialTotalMismatch
-    ? `Detected mismatch in parsed receipt total. Initial total was ${formatMoney(initialFetchedTotal ?? 0)} ${receipt.currency}, but computed total from items + charges is ${formatMoney(receipt.total)} ${receipt.currency}. Please review the item subtotals and charges before proceeding.`
+    ? `Warning: mismatch in receipt's total amount.
+    Expected - ${formatMoney(initialFetchedTotal ?? 0)} ${receipt.currency}
+    Currently - ${formatMoney(receipt.total)} ${receipt.currency}`
     : null;
+
+  const missingFieldsMessage =
+    missingStep1Fields.length === 1 &&
+    missingStep1Fields[0].includes("currency")
+      ? missingStep1Fields[0]
+      : `Please fill in the following fields: ${missingStep1Fields.join(", ")}`;
+
+  const step1ValidationErrors: string[] = [];
+  if (missingStep1Fields.length > 0) {
+    step1ValidationErrors.push(missingFieldsMessage);
+  }
+  if (totalMismatchWarning) {
+    step1ValidationErrors.push(totalMismatchWarning);
+  }
+
+  const step1ValidationMessage =
+    step1ValidationErrors.length > 0 ? step1ValidationErrors.join("\n") : null;
+  const hasBlockingStep1Errors = missingStep1Fields.length > 0;
+
+  const goToStep = (nextStep: 1 | 2 | 3) => {
+    if (nextStep > 1 && hasBlockingStep1Errors) {
+      setStep(1);
+      return;
+    }
+
+    if (nextStep > 1 && hasInitialTotalMismatch) {
+      setMismatchProceedTargetStep(nextStep as 2 | 3);
+      setMismatchProceedConfirmOpen(true);
+      setStep(1);
+      return;
+    }
+
+    setStep(nextStep);
+  };
+
+  const confirmProceedWithMismatch = () => {
+    setMismatchProceedConfirmOpen(false);
+    setStep(mismatchProceedTargetStep);
+  };
+
+  const stepLabels = [
+    { step: 1, title: "Confirm" },
+    { step: 2, title: "Non-shared" },
+    { step: 3, title: "Shared" },
+  ];
 
   return (
     <main className="min-h-screen bg-[#eceff3] px-3 py-5 text-slate-900 sm:px-5">
       <div className="mx-auto w-full max-w-2xl space-y-4">
-        {!groupId ? (
-          <LoadingSpinner />
-        ) : loading ? (
+        {!groupId || loading ? (
           <Box
             sx={{
               minHeight: "calc(100vh - 56px)",
@@ -586,8 +619,8 @@ export default function Home() {
                 users={users}
                 expenseTitle={expenseTitle}
                 paidBy={paidBy}
-                step1GuardError={step1GuardError}
-                totalMismatchWarning={totalMismatchWarning}
+                step1ValidationMessage={step1ValidationMessage}
+                isProceedDisabled={hasBlockingStep1Errors}
                 onUpdateExpenseTitle={setExpenseTitle}
                 onUpdatePaidBy={setPaidBy}
                 onUpdateItem={updateStep1Item}
@@ -601,7 +634,7 @@ export default function Home() {
               <IndividualItems
                 users={users}
                 selectedUser={selectedUserStep2}
-                selectedItemAssignments={selectedItemAssignments}
+                selectedUserItemAssignments={selectedUserItemAssignments}
                 itemSummaries={itemSummaries}
                 currency={receipt.currency}
                 onSelectUser={setSelectedUserStep2}
@@ -635,6 +668,29 @@ export default function Home() {
           </>
         )}
       </div>
+
+      <Dialog
+        open={mismatchProceedConfirmOpen}
+        onClose={() => setMismatchProceedConfirmOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Notice</DialogTitle>
+        <DialogContent>
+          <Typography>
+            There is a mismatch in the receipt's total amount, are you sure you
+            want to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMismatchProceedConfirmOpen(false)}>
+            Back
+          </Button>
+          <Button variant="contained" onClick={confirmProceedWithMismatch}>
+            Proceed
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={submitConfirmOpen}

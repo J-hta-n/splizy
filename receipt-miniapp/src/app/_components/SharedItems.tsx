@@ -70,7 +70,7 @@ export function SharedItems({
             </Typography>
             <Typography variant="body2" mt={1}>
               For all remaining shared items, tap &quot;Split among&quot; to
-              choose the users involved.
+              choose the users involved in sharing.
             </Typography>
           </CardContent>
         </Card>
@@ -120,8 +120,9 @@ export function SharedItems({
                           {item.name || "Unnamed item"}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          qty left: {sharedQty}, total {currency}{" "}
-                          {formatMoney(item.subtotal ?? 0)}
+                          @{currency}{" "}
+                          {formatMoney((item.subtotal ?? 0) / item.quantity)} |
+                          qty left: {sharedQty}
                         </Typography>
                       </Box>
                       <Box
