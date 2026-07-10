@@ -42,8 +42,7 @@ type ConfirmItemsProps = {
   users: string[];
   expenseTitle: string;
   paidBy: string;
-  step1GuardError: string | null;
-  totalMismatchWarning: string | null;
+  step1ValidationMessage: string | null;
   onUpdateExpenseTitle: (value: string) => void;
   onUpdatePaidBy: (value: string) => void;
   onUpdateItem: (
@@ -65,8 +64,7 @@ export function ConfirmItems({
   users,
   expenseTitle,
   paidBy,
-  step1GuardError,
-  totalMismatchWarning,
+  step1ValidationMessage,
   onUpdateExpenseTitle,
   onUpdatePaidBy,
   onUpdateItem,
@@ -136,22 +134,7 @@ export function ConfirmItems({
     closeEditModal();
   };
 
-  const missingFields: string[] = [];
-  if (!expenseTitle.trim()) {
-    missingFields.push("expense title");
-  }
-  if (!paidBy.trim() || !users.includes(paidBy)) {
-    missingFields.push("paid by");
-  }
-  if (!receipt.currency || !ALL_CURRENCY_CODE_SET.has(receipt.currency)) {
-    missingFields.push("please choose a valid currency code");
-  }
-
-  const isStep1Valid = missingFields.length === 0;
-  const validationMessage =
-    missingFields.length === 1 && missingFields[0].includes("currency")
-      ? missingFields[0]
-      : `please fill in the following fields: ${missingFields.join(", ")}`;
+  const isStep1Valid = !step1ValidationMessage;
 
   return (
     <>
@@ -167,15 +150,13 @@ export function ConfirmItems({
           </CardContent>
         </Card>
 
-        {step1GuardError ? (
-          <Typography color="error.main" variant="body2">
-            {step1GuardError}
-          </Typography>
-        ) : null}
-
-        {totalMismatchWarning ? (
-          <Typography color="error.main" variant="body2">
-            {totalMismatchWarning}
+        {step1ValidationMessage ? (
+          <Typography
+            color="error.main"
+            variant="body2"
+            sx={{ whiteSpace: "pre-line" }}
+          >
+            {step1ValidationMessage}
           </Typography>
         ) : null}
 
@@ -268,7 +249,7 @@ export function ConfirmItems({
                             color={marked ? "error" : "default"}
                             onClick={() => toggleDeleteChoice(index)}
                           >
-                            <DeleteOutlineIcon />
+                            <DeleteOutlineIcon color="warning" />
                           </IconButton>
                         ) : (
                           <IconButton onClick={() => openEditModal(index)}>
@@ -385,7 +366,7 @@ export function ConfirmItems({
                 variant="outlined"
                 onClick={handleDeleteAction}
               >
-                {deleteMode ? "Confirm deletion" : "Delete entry"}
+                {deleteMode ? "Confirm deletion" : "Delete entries"}
               </Button>
               <Button
                 variant="contained"
@@ -395,9 +376,15 @@ export function ConfirmItems({
                 Proceed to step 2
               </Button>
             </Stack>
-            {!isStep1Valid ? (
-              <Typography color="error.main" variant="body2" mt={1.25}>
-                {validationMessage}
+            {step1ValidationMessage ? (
+              <Typography
+                color="error.main"
+                variant="body2"
+                mt={1.25}
+                mb={2}
+                sx={{ whiteSpace: "pre-line" }}
+              >
+                {step1ValidationMessage}
               </Typography>
             ) : null}
           </CardContent>

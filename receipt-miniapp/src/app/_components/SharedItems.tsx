@@ -70,7 +70,7 @@ export function SharedItems({
             </Typography>
             <Typography variant="body2" mt={1}>
               For all remaining shared items, tap &quot;Split among&quot; to
-              choose the users involved.
+              choose the users involved in sharing.
             </Typography>
           </CardContent>
         </Card>
