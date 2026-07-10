@@ -43,6 +43,7 @@ type ConfirmItemsProps = {
   expenseTitle: string;
   paidBy: string;
   step1ValidationMessage: string | null;
+  isProceedDisabled: boolean;
   onUpdateExpenseTitle: (value: string) => void;
   onUpdatePaidBy: (value: string) => void;
   onUpdateItem: (
@@ -54,7 +55,11 @@ type ConfirmItemsProps = {
     field: "currency" | "service_charge" | "gst",
     value: string,
   ) => void;
-  onAddItem: () => void;
+  onAddItem: (item: {
+    name: string;
+    quantity: number;
+    subtotal: number;
+  }) => void;
   onRemoveItems: (indices: number[]) => void;
   onNext: () => void;
 };
@@ -65,6 +70,7 @@ export function ConfirmItems({
   expenseTitle,
   paidBy,
   step1ValidationMessage,
+  isProceedDisabled,
   onUpdateExpenseTitle,
   onUpdatePaidBy,
   onUpdateItem,
@@ -75,10 +81,14 @@ export function ConfirmItems({
 }: ConfirmItemsProps) {
   const [deleteMode, setDeleteMode] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<number[]>([]);
+  const [itemModalMode, setItemModalMode] = useState<"add" | "edit" | null>(
+    null,
+  );
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
-  const [draftQty, setDraftQty] = useState(0);
+  const [draftQty, setDraftQty] = useState(1);
   const [draftSubtotal, setDraftSubtotal] = useState("");
+  const [itemModalError, setItemModalError] = useState<string | null>(null);
   const [currencyInputValue, setCurrencyInputValue] = useState(
     receipt.currency,
   );
@@ -116,25 +126,59 @@ export function ConfirmItems({
 
   const openEditModal = (index: number) => {
     const item = receipt.items[index];
+    setItemModalMode("edit");
     setEditingIndex(index);
+    setItemModalError(null);
     setDraftName(item.name ?? "");
-    setDraftQty(item.quantity ?? 0);
+    setDraftQty(item.quantity ?? 1);
     setDraftSubtotal(item.subtotal === null ? "" : String(item.subtotal));
   };
 
-  const closeEditModal = () => {
+  const openAddModal = () => {
+    setItemModalMode("add");
     setEditingIndex(null);
+    setItemModalError(null);
+    setDraftName("");
+    setDraftQty(1);
+    setDraftSubtotal("");
+  };
+
+  const closeEditModal = () => {
+    setItemModalMode(null);
+    setEditingIndex(null);
+    setItemModalError(null);
   };
 
   const saveEditModal = () => {
+    const name = draftName.trim();
+    const quantity = Number(draftQty);
+    const subtotal = Number(draftSubtotal);
+
+    if (!name) {
+      setItemModalError("Please enter item name.");
+      return;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setItemModalError("Quantity must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      setItemModalError("Subtotal must be greater than 0.");
+      return;
+    }
+
+    if (itemModalMode === "add") {
+      onAddItem({ name, quantity, subtotal });
+      closeEditModal();
+      return;
+    }
+
     if (editingIndex === null) return;
-    onUpdateItem(editingIndex, "name", draftName);
-    onUpdateItem(editingIndex, "quantity", String(Math.max(0, draftQty)));
-    onUpdateItem(editingIndex, "subtotal", draftSubtotal);
+    onUpdateItem(editingIndex, "name", name);
+    onUpdateItem(editingIndex, "quantity", String(quantity));
+    onUpdateItem(editingIndex, "subtotal", String(subtotal));
     closeEditModal();
   };
-
-  const isStep1Valid = !step1ValidationMessage;
 
   return (
     <>
@@ -358,7 +402,7 @@ export function ConfirmItems({
               mt={2.5}
               justifyContent="space-between"
             >
-              <Button variant="outlined" onClick={onAddItem}>
+              <Button variant="outlined" onClick={openAddModal}>
                 Add new entry
               </Button>
               <Button
@@ -371,7 +415,7 @@ export function ConfirmItems({
               <Button
                 variant="contained"
                 onClick={onNext}
-                disabled={!isStep1Valid}
+                disabled={isProceedDisabled}
               >
                 Proceed to step 2
               </Button>
@@ -392,18 +436,23 @@ export function ConfirmItems({
       </Stack>
 
       <Dialog
-        open={editingIndex !== null}
+        open={itemModalMode !== null}
         onClose={closeEditModal}
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>Edit item</DialogTitle>
+        <DialogTitle>
+          {itemModalMode === "add" ? "Add new item" : "Edit item"}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={0.5}>
             <TextField
               label="Name"
               value={draftName}
-              onChange={(event) => setDraftName(event.target.value)}
+              onChange={(event) => {
+                setDraftName(event.target.value);
+                setItemModalError(null);
+              }}
               size="small"
               fullWidth
             />
@@ -415,7 +464,10 @@ export function ConfirmItems({
               <Stack direction="row" spacing={1} alignItems="center">
                 <Button
                   variant="outlined"
-                  onClick={() => setDraftQty((prev) => Math.max(0, prev - 1))}
+                  onClick={() => {
+                    setDraftQty((prev) => Math.max(1, prev - 1));
+                    setItemModalError(null);
+                  }}
                   sx={{ minWidth: 40 }}
                 >
                   -
@@ -427,7 +479,10 @@ export function ConfirmItems({
                 </Typography>
                 <Button
                   variant="outlined"
-                  onClick={() => setDraftQty((prev) => prev + 1)}
+                  onClick={() => {
+                    setDraftQty((prev) => prev + 1);
+                    setItemModalError(null);
+                  }}
                   sx={{ minWidth: 40 }}
                 >
                   +
@@ -438,7 +493,10 @@ export function ConfirmItems({
             <TextField
               label="Subtotal"
               value={draftSubtotal}
-              onChange={(event) => setDraftSubtotal(event.target.value)}
+              onChange={(event) => {
+                setDraftSubtotal(event.target.value);
+                setItemModalError(null);
+              }}
               type="text"
               size="small"
               placeholder="0.00"
@@ -451,12 +509,17 @@ export function ConfirmItems({
               }}
               fullWidth
             />
+            {itemModalError ? (
+              <Typography color="error.main" variant="body2">
+                {itemModalError}
+              </Typography>
+            ) : null}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={closeEditModal}>Cancel</Button>
           <Button variant="contained" onClick={saveEditModal}>
-            Save
+            {itemModalMode === "add" ? "Add" : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
