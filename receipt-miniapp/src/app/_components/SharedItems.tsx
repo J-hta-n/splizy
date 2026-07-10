@@ -120,8 +120,9 @@ export function SharedItems({
                           {item.name || "Unnamed item"}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          qty left: {sharedQty}, total {currency}{" "}
-                          {formatMoney(item.subtotal ?? 0)}
+                          @{currency}{" "}
+                          {formatMoney((item.subtotal ?? 0) / item.quantity)} |
+                          qty left: {sharedQty}
                         </Typography>
                       </Box>
                       <Box

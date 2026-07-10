@@ -92,6 +92,7 @@ const QuantityControl = ({
   onMinus: () => void;
   onPlus: () => void;
 }) => {
+  const isDisabled = value <= 0 && qtyLeft <= 0;
   return (
     <Stack direction="row" spacing={1} alignItems="center">
       <Button
@@ -104,6 +105,7 @@ const QuantityControl = ({
       </Button>
       <Chip
         label={value}
+        disabled={isDisabled}
         color="default"
         variant="outlined"
         sx={{ minWidth: 48, fontWeight: 700 }}
@@ -112,7 +114,7 @@ const QuantityControl = ({
         variant="outlined"
         onClick={onPlus}
         sx={{ minWidth: 40 }}
-        disabled={value >= qtyLeft + value}
+        disabled={qtyLeft <= 0}
       >
         +
       </Button>
@@ -216,7 +218,7 @@ export function IndividualItems({
                       </Tooltip>
                     </Box>
                     <Typography variant="body2" color="text.secondary">
-                      {currency} {formatMoney(unitPrice)} | qty left: {qtyLeft}
+                      @{currency} {formatMoney(unitPrice)} | qty left: {qtyLeft}
                     </Typography>
                   </Box>
                   <QuantityControl
