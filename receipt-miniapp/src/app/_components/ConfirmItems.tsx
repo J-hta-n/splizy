@@ -79,8 +79,9 @@ export function ConfirmItems({
   onRemoveItems,
   onNext,
 }: ConfirmItemsProps) {
-  const [deleteMode, setDeleteMode] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<number[]>([]);
+  const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(
+    null,
+  );
   const [itemModalMode, setItemModalMode] = useState<"add" | "edit" | null>(
     null,
   );
@@ -104,24 +105,18 @@ export function ConfirmItems({
     }
   }, [receipt.currency, onUpdateMeta]);
 
-  const toggleDeleteChoice = (index: number) => {
-    setPendingDelete((current) =>
-      current.includes(index)
-        ? current.filter((entry) => entry !== index)
-        : [...current, index],
-    );
+  const openDeleteDialog = (index: number) => {
+    setPendingDeleteIndex(index);
   };
 
-  const handleDeleteAction = () => {
-    if (!deleteMode) {
-      setDeleteMode(true);
-      return;
-    }
-    if (pendingDelete.length > 0) {
-      onRemoveItems(pendingDelete);
-    }
-    setPendingDelete([]);
-    setDeleteMode(false);
+  const closeDeleteDialog = () => {
+    setPendingDeleteIndex(null);
+  };
+
+  const confirmDelete = () => {
+    if (pendingDeleteIndex === null) return;
+    onRemoveItems([pendingDeleteIndex]);
+    closeDeleteDialog();
   };
 
   const openEditModal = (index: number) => {
@@ -241,7 +236,7 @@ export function ConfirmItems({
             <Table size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700, width: "50%" }}>
+                  <TableCell sx={{ fontWeight: 700, width: "46%" }}>
                     Item
                   </TableCell>
                   <TableCell
@@ -251,24 +246,23 @@ export function ConfirmItems({
                     Qty
                   </TableCell>
                   <TableCell
-                    sx={{ fontWeight: 700, width: "20%" }}
+                    sx={{ fontWeight: 700, width: "22%" }}
                     align="right"
                   >
                     Subtotal
                   </TableCell>
                   <TableCell
-                    sx={{ fontWeight: 700, width: "10%" }}
-                    align="center"
+                    sx={{ fontWeight: 700, width: "22%" }}
+                    align="right"
                   >
-                    {deleteMode ? "Delete" : "Edit"}
+                    Edit
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {receipt.items.map((item, index) => {
-                  const marked = pendingDelete.includes(index);
                   return (
-                    <TableRow key={String(index)} selected={marked}>
+                    <TableRow key={String(index)} sx={{ "& td": { py: 1 } }}>
                       <TableCell
                         sx={{
                           whiteSpace: "normal",
@@ -287,19 +281,28 @@ export function ConfirmItems({
                           {formatMoney(item.subtotal ?? 0)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
-                        {deleteMode ? (
+                      <TableCell
+                        align="right"
+                        sx={{ whiteSpace: "nowrap", pr: 1 }}
+                      >
+                        <Stack direction="row" sx={{ display: "inline-flex" }}>
                           <IconButton
-                            color={marked ? "error" : "default"}
-                            onClick={() => toggleDeleteChoice(index)}
+                            size="small"
+                            color="info"
+                            sx={{ opacity: 0.6 }}
+                            onClick={() => openEditModal(index)}
                           >
-                            <DeleteOutlineIcon color="warning" />
+                            <EditOutlinedIcon sx={{ fontSize: 20 }} />
                           </IconButton>
-                        ) : (
-                          <IconButton onClick={() => openEditModal(index)}>
-                            <EditOutlinedIcon />
+                          <IconButton
+                            size="small"
+                            color="error"
+                            sx={{ opacity: 0.6 }}
+                            onClick={() => openDeleteDialog(index)}
+                          >
+                            <DeleteOutlineIcon sx={{ fontSize: 20 }} />
                           </IconButton>
-                        )}
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   );
@@ -311,7 +314,7 @@ export function ConfirmItems({
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
               mt={2.5}
-              justifyContent="space-between"
+              justifyContent="flex-start"
             >
               <Button
                 color="secondary"
@@ -319,13 +322,6 @@ export function ConfirmItems({
                 onClick={openAddModal}
               >
                 Add new entry
-              </Button>
-              <Button
-                color={deleteMode ? "error" : "secondary"}
-                variant="outlined"
-                onClick={handleDeleteAction}
-              >
-                {deleteMode ? "Confirm deletion" : "Delete entries"}
               </Button>
             </Stack>
 
@@ -544,6 +540,30 @@ export function ConfirmItems({
           <Button onClick={closeEditModal}>Cancel</Button>
           <Button variant="contained" onClick={saveEditModal}>
             {itemModalMode === "add" ? "Add" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={pendingDeleteIndex !== null}
+        onClose={closeDeleteDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Delete item?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This will remove{" "}
+            {pendingDeleteIndex !== null
+              ? receipt.items[pendingDeleteIndex]?.name || "this item"
+              : "this item"}{" "}
+            from the receipt.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDeleteDialog}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={confirmDelete}>
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

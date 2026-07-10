@@ -676,8 +676,8 @@ export default function Home() {
         maxWidth="xs"
       >
         <DialogTitle>Notice</DialogTitle>
-        <DialogContent dividers>
-          <Typography sx={{ whiteSpace: "pre-line" }}>
+        <DialogContent>
+          <Typography>
             There is a mismatch in the receipt's total amount, are you sure you
             want to proceed?
           </Typography>

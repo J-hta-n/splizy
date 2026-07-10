@@ -212,7 +212,7 @@ export function IndividualItems({
                           aria-label="Item info"
                         >
                           <InfoOutlinedIcon
-                            sx={{ fontSize: 17, opacity: 0.85 }}
+                            sx={{ fontSize: 17, opacity: 0.7 }}
                           />
                         </IconButton>
                       </Tooltip>
