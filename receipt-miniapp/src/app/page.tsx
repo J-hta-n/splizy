@@ -72,6 +72,11 @@ export default function Home() {
     string | null
   >(null);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [mismatchProceedConfirmOpen, setMismatchProceedConfirmOpen] =
+    useState(false);
+  const [mismatchProceedTargetStep, setMismatchProceedTargetStep] = useState<
+    2 | 3
+  >(2);
   const [submittedSuccessfully, setSubmittedSuccessfully] = useState(false);
 
   const recomputeReceiptTotals = (input: Receipt): Receipt => {
@@ -323,14 +328,26 @@ export default function Home() {
     });
   };
 
-  const addStep1Item = () => {
-    setReceipt((cur) => ({
-      ...cur,
-      items: [
+  const addStep1Item = (item: {
+    name: string;
+    quantity: number;
+    subtotal: number;
+  }) => {
+    setReceipt((cur) => {
+      const items = [
         ...cur.items,
-        { name: "<New Item>", quantity: 1, subtotal: 1, indiv: [], shared: [] },
-      ],
-    }));
+        {
+          name: item.name,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+          indiv: [],
+          shared: [],
+        },
+      ];
+      const subtotal = items.reduce((sum, entry) => sum + entry.subtotal, 0);
+      const total = subtotal + cur.service_charge + cur.gst;
+      return { ...cur, items, subtotal, total };
+    });
   };
 
   const removeStep1Items = (indices: number[]) => {
@@ -471,8 +488,9 @@ export default function Home() {
     Math.abs(initialFetchedTotal - receipt.total) > 0.009;
 
   const totalMismatchWarning = hasInitialTotalMismatch
-    ? `Detected mismatch in parsed receipt total:
-    Expected ${formatMoney(initialFetchedTotal ?? 0)} ${receipt.currency}, received ${formatMoney(receipt.total)} ${receipt.currency} instead.`
+    ? `Warning: mismatch in receipt's total amount.
+    Expected - ${formatMoney(initialFetchedTotal ?? 0)} ${receipt.currency}
+    Currently - ${formatMoney(receipt.total)} ${receipt.currency}`
     : null;
 
   const missingFieldsMessage =
@@ -491,16 +509,27 @@ export default function Home() {
 
   const step1ValidationMessage =
     step1ValidationErrors.length > 0 ? step1ValidationErrors.join("\n") : null;
-
-  const canProceedFromStep1 = !step1ValidationMessage;
+  const hasBlockingStep1Errors = missingStep1Fields.length > 0;
 
   const goToStep = (nextStep: 1 | 2 | 3) => {
-    if (nextStep > 1 && !canProceedFromStep1) {
+    if (nextStep > 1 && hasBlockingStep1Errors) {
+      setStep(1);
+      return;
+    }
+
+    if (nextStep > 1 && hasInitialTotalMismatch) {
+      setMismatchProceedTargetStep(nextStep as 2 | 3);
+      setMismatchProceedConfirmOpen(true);
       setStep(1);
       return;
     }
 
     setStep(nextStep);
+  };
+
+  const confirmProceedWithMismatch = () => {
+    setMismatchProceedConfirmOpen(false);
+    setStep(mismatchProceedTargetStep);
   };
 
   const stepLabels = [
@@ -512,9 +541,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#eceff3] px-3 py-5 text-slate-900 sm:px-5">
       <div className="mx-auto w-full max-w-2xl space-y-4">
-        {!groupId ? (
-          <LoadingSpinner />
-        ) : loading ? (
+        {!groupId || loading ? (
           <Box
             sx={{
               minHeight: "calc(100vh - 56px)",
@@ -589,6 +616,7 @@ export default function Home() {
                 expenseTitle={expenseTitle}
                 paidBy={paidBy}
                 step1ValidationMessage={step1ValidationMessage}
+                isProceedDisabled={hasBlockingStep1Errors}
                 onUpdateExpenseTitle={setExpenseTitle}
                 onUpdatePaidBy={setPaidBy}
                 onUpdateItem={updateStep1Item}
@@ -636,6 +664,29 @@ export default function Home() {
           </>
         )}
       </div>
+
+      <Dialog
+        open={mismatchProceedConfirmOpen}
+        onClose={() => setMismatchProceedConfirmOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Notice</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ whiteSpace: "pre-line" }}>
+            There is a mismatch in the receipt's total amount, are you sure you
+            want to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMismatchProceedConfirmOpen(false)}>
+            Back
+          </Button>
+          <Button variant="contained" onClick={confirmProceedWithMismatch}>
+            Proceed
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={submitConfirmOpen}
