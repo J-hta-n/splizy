@@ -12,7 +12,11 @@ from src.lib.splizy_repo.model import (
     TempReceiptUpdate,
 )
 from src.lib.splizy_repo.repo import repo
-from src.lib.splizy_repo.utils import build_expense_payload, build_temp_receipt_payload
+from src.lib.splizy_repo.utils import (
+    build_expense_payload,
+    build_temp_receipt_payload,
+    get_usernames,
+)
 
 
 def get_group_expense_currency(group_id: GroupId) -> str:

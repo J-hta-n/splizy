@@ -21,21 +21,51 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatMoney } from "@/lib/utils";
 import {
   ALL_CURRENCY_CODES,
-  ALL_CURRENCY_CODE_SET,
   CURRENCY_SHORTHANDS,
   normalizeCurrencyInput,
 } from "@/lib/currencies";
-import { Receipt } from "../api/expenses/schema";
+import { Receipt } from "@/app/api/expenses/schema";
 
 const currencyDisplayNames = new Intl.DisplayNames(["en"], {
   type: "currency",
 });
 
 const getCurrencyName = (code: string) => currencyDisplayNames.of(code) ?? code;
+const validDecimalPattern = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
+const editableDecimalPattern = /^(?:\d+(?:\.\d*)?|\.\d*)?$/;
+const negativeDecimalPattern = /^-\d*(?:\.\d*)?$/;
+const toDraftAmount = (value: number) => (value === 0 ? "" : String(value));
+
+const getMetaAmountError = (value: string, allowPartial: boolean) => {
+  const input = value.trim();
+  if (!input) {
+    return null;
+  }
+  if (negativeDecimalPattern.test(input)) {
+    return "Value must be 0 or greater.";
+  }
+  if (allowPartial && (input === "." || /\d+\.$/.test(input))) {
+    return null;
+  }
+  if (!validDecimalPattern.test(input)) {
+    return "Value format is invalid.";
+  }
+
+  return null;
+};
+
+const isExtraDecimalSeparatorInput = (value: string) => {
+  const input = value.trim();
+  return (
+    input.length > 0 &&
+    /^[\d.]+$/.test(input) &&
+    !editableDecimalPattern.test(input)
+  );
+};
 
 type ConfirmItemsProps = {
   receipt: Receipt;
@@ -89,21 +119,19 @@ export function ConfirmItems({
   const [draftName, setDraftName] = useState("");
   const [draftQty, setDraftQty] = useState(1);
   const [draftSubtotal, setDraftSubtotal] = useState("");
+  const [draftServiceCharge, setDraftServiceCharge] = useState("");
+  const [draftGst, setDraftGst] = useState("");
+  const [activeMetaField, setActiveMetaField] = useState<
+    "service_charge" | "gst" | null
+  >(null);
   const [itemModalError, setItemModalError] = useState<string | null>(null);
-  const [currencyInputValue, setCurrencyInputValue] = useState(
-    receipt.currency,
-  );
 
-  useEffect(() => {
-    const normalized = normalizeCurrencyInput(receipt.currency);
-    setCurrencyInputValue(normalized);
-    if (
-      normalized !== receipt.currency &&
-      ALL_CURRENCY_CODE_SET.has(normalized)
-    ) {
-      onUpdateMeta("currency", normalized);
-    }
-  }, [receipt.currency, onUpdateMeta]);
+  const serviceChargeError = getMetaAmountError(
+    draftServiceCharge,
+    activeMetaField === "service_charge",
+  );
+  const gstError = getMetaAmountError(draftGst, activeMetaField === "gst");
+  const hasMetaFieldErrors = serviceChargeError !== null || gstError !== null;
 
   const openDeleteDialog = (index: number) => {
     setPendingDeleteIndex(index);
@@ -147,7 +175,8 @@ export function ConfirmItems({
   const saveEditModal = () => {
     const name = draftName.trim();
     const quantity = Number(draftQty);
-    const subtotal = Number(draftSubtotal);
+    const subtotalInput = draftSubtotal.trim();
+    const subtotal = Number(subtotalInput);
 
     if (!name) {
       setItemModalError("Please enter item name.");
@@ -155,6 +184,10 @@ export function ConfirmItems({
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
       setItemModalError("Quantity must be greater than 0.");
+      return;
+    }
+    if (!validDecimalPattern.test(subtotalInput)) {
+      setItemModalError("Subtotal value format is invalid.");
       return;
     }
     if (!Number.isFinite(subtotal) || subtotal <= 0) {
@@ -331,11 +364,8 @@ export function ConfirmItems({
                 value={receipt.currency || null}
                 onChange={(event, value) => {
                   onUpdateMeta("currency", value || "");
-                  setCurrencyInputValue(value || "");
                 }}
-                inputValue={currencyInputValue}
                 onInputChange={(event, value) => {
-                  setCurrencyInputValue(value);
                   const normalized = normalizeCurrencyInput(value);
                   onUpdateMeta("currency", normalized);
                 }}
@@ -364,17 +394,40 @@ export function ConfirmItems({
               />
               <TextField
                 value={
-                  receipt.service_charge === 0
-                    ? ""
-                    : String(receipt.service_charge)
+                  activeMetaField === "service_charge"
+                    ? draftServiceCharge
+                    : toDraftAmount(receipt.service_charge)
                 }
-                onChange={(event) =>
-                  onUpdateMeta("service_charge", event.target.value)
-                }
+                onFocus={() => {
+                  setActiveMetaField("service_charge");
+                  if (!draftServiceCharge) {
+                    setDraftServiceCharge(
+                      toDraftAmount(receipt.service_charge),
+                    );
+                  }
+                }}
+                onBlur={() => {
+                  setActiveMetaField(null);
+                  if (getMetaAmountError(draftServiceCharge, false) === null) {
+                    setDraftServiceCharge("");
+                  }
+                }}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  if (isExtraDecimalSeparatorInput(nextValue)) {
+                    return;
+                  }
+                  setDraftServiceCharge(nextValue);
+                  if (getMetaAmountError(nextValue, true) === null) {
+                    onUpdateMeta("service_charge", nextValue);
+                  }
+                }}
                 label="Service charge"
                 type="text"
                 placeholder="0.00"
                 size="small"
+                error={serviceChargeError !== null}
+                helperText={serviceChargeError}
                 slotProps={{
                   input: {
                     inputProps: {
@@ -384,12 +437,39 @@ export function ConfirmItems({
                 }}
               />
               <TextField
-                value={receipt.gst === 0 ? "" : String(receipt.gst)}
-                onChange={(event) => onUpdateMeta("gst", event.target.value)}
+                value={
+                  activeMetaField === "gst"
+                    ? draftGst
+                    : toDraftAmount(receipt.gst)
+                }
+                onFocus={() => {
+                  setActiveMetaField("gst");
+                  if (!draftGst) {
+                    setDraftGst(toDraftAmount(receipt.gst));
+                  }
+                }}
+                onBlur={() => {
+                  setActiveMetaField(null);
+                  if (getMetaAmountError(draftGst, false) === null) {
+                    setDraftGst("");
+                  }
+                }}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  if (isExtraDecimalSeparatorInput(nextValue)) {
+                    return;
+                  }
+                  setDraftGst(nextValue);
+                  if (getMetaAmountError(nextValue, true) === null) {
+                    onUpdateMeta("gst", nextValue);
+                  }
+                }}
                 label="GST / tax"
                 type="text"
                 placeholder="0.00"
                 size="small"
+                error={gstError !== null}
+                helperText={gstError}
                 slotProps={{
                   input: {
                     inputProps: {
@@ -446,7 +526,7 @@ export function ConfirmItems({
               <Button
                 variant="contained"
                 onClick={onNext}
-                disabled={isProceedDisabled}
+                disabled={isProceedDisabled || hasMetaFieldErrors}
               >
                 Proceed to step 2
               </Button>

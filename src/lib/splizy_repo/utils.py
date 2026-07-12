@@ -8,8 +8,13 @@ from src.lib.splizy_repo.model import (
     MiniappReceiptData,
     PayeeData,
     ReceiptData,
+    SplizyUserRow,
     TempReceiptInsert,
 )
+
+
+def get_usernames(users: Sequence[SplizyUserRow]) -> list[str]:
+    return [user["username"] for user in users]
 
 
 def build_expense_payload(

@@ -77,7 +77,7 @@ async def send_select_currency(query: CallbackQuery, text: str, target_field: st
     keyboard.append(
         [
             InlineKeyboardButton(
-                f"Input another currency",
+                "Input another currency",
                 callback_data=f"currency_custom:{target_field}",
             )
         ]

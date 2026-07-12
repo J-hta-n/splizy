@@ -250,7 +250,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            f"👥 How do you want to split this expense?", reply_markup=reply_markup
+            "👥 How do you want to split this expense?", reply_markup=reply_markup
         )
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
