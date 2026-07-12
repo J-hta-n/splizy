@@ -19,6 +19,9 @@ from src.bot.convo_handlers.ManageBills.callbacks import (
     VIEW_TOGGLE_SHOW,
 )
 from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
+from src.bot.convo_handlers.ManageBills.utils.general import (
+    format_saved_expense_summary,
+)
 from src.bot.convo_handlers.ManageBills.utils.renderers.bill_summary import (
     get_bill_summary,
     get_bill_summary_with_receipt,
@@ -26,22 +29,35 @@ from src.bot.convo_handlers.ManageBills.utils.renderers.bill_summary import (
 from src.bot.convo_utils.formatters import get_2dp_str, truncate_label
 from src.bot.convo_utils.pagination import get_page_window
 from src.lib.currencies.utils import get_shorthand_currency
+from src.lib.splizy_repo.model import ExpenseRow
 
 MAX_TELEGRAM_TEXT_LEN = 3800
 RECEIPT_DETAIL_MESSAGE_IDS_KEY = "receipt_detail_message_ids"
 VIEWALL_PAGE_SIZE = 10
 
 
-def get_view_all_entries_markup() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+def get_view_all_entries_markup(
+    has_receipt=False, is_showing_receipt=False
+) -> InlineKeyboardMarkup:
+    keyboard = []
+
+    if has_receipt:
+        toggle_label = (
+            "Hide receipt details" if is_showing_receipt else "Show receipt details"
+        )
+        toggle_callback = HIDE_RECEIPT if is_showing_receipt else SHOW_RECEIPT
+        keyboard.append(
+            [InlineKeyboardButton(toggle_label, callback_data=toggle_callback)]
+        )
+
+    keyboard.append(
         [
-            [
-                InlineKeyboardButton(
-                    "View all entries so far", callback_data=VIEW_ALL_ENTRIES
-                )
-            ]
+            InlineKeyboardButton(
+                "View all entries so far", callback_data=VIEW_ALL_ENTRIES
+            )
         ]
     )
+    return InlineKeyboardMarkup(keyboard)
 
 
 def _chunk_text_by_blocks(text: str, max_len: int = MAX_TELEGRAM_TEXT_LEN) -> list[str]:
@@ -374,3 +390,25 @@ async def send_expense_with_receipt_view(
         detail_message_ids.append(sent.message_id)
 
     context.chat_data[RECEIPT_DETAIL_MESSAGE_IDS_KEY] = detail_message_ids
+
+
+async def send_newly_added_expense_view(
+    update: Update, expense: ExpenseRow, has_receipt=False
+):
+    await update.callback_query.edit_message_text(
+        format_saved_expense_summary(expense, has_receipt),
+        reply_markup=get_view_all_entries_markup(has_receipt),
+    )
+
+
+async def send_newly_added_expense_with_receipt_view(
+    update: Update, expense: ExpenseRow
+):
+    await update.callback_query.edit_message_text(
+        format_saved_expense_summary(
+            expense, has_receipt=True, is_showing_receipt=True
+        ),
+        reply_markup=get_view_all_entries_markup(
+            has_receipt=True, is_showing_receipt=True
+        ),
+    )

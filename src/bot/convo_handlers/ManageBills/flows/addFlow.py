@@ -5,7 +5,6 @@ from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
     build_payees,
-    format_saved_expense_summary,
     populate_context_for_selected_expense_from_viewall,
 )
 from src.bot.convo_handlers.ManageBills.utils.parsers import (
@@ -13,12 +12,14 @@ from src.bot.convo_handlers.ManageBills.utils.parsers import (
     parse_multiplier,
 )
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
-    get_view_all_entries_markup,
     send_confirmation_form,
     send_custom_multiselect_users,
     send_expense_view,
     send_multiselect_users,
     send_select_user,
+)
+from src.bot.convo_handlers.ManageBills.utils.renderers.index import (
+    send_newly_added_expense_view,
 )
 from src.bot.convo_utils.wrappers import ensure_has_registered_users, group_only
 from src.lib.logger import get_logger
@@ -286,10 +287,7 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
                 return ManageBillStates.EDIT_OR_GO_BACK
             # Else show viewall option
-            await query.edit_message_text(
-                format_saved_expense_summary(saved_expense),
-                reply_markup=get_view_all_entries_markup(),
-            )
+            await send_newly_added_expense_view(update, saved_expense)
             return ManageBillStates.VIEW_EXPENSE
 
         except Exception as e:
