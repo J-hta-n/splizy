@@ -8,6 +8,7 @@ from telegram.ext import (
     filters,
 )
 
+from lib.splizy_repo.utils import get_usernames
 from src.bot.convo_handlers.Base import BaseConversation
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.splizy_repo.repo import repo
@@ -76,7 +77,7 @@ async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Check if group already has registered users
     existing_users = repo.list_group_users(group_id)
     if existing_users:
-        usernames = [user["username"] for user in existing_users]
+        usernames = get_usernames(existing_users)
         users_list = ", ".join([f"@{u}" for u in usernames])
         keyboard = [[InlineKeyboardButton("🔄 Try Again", callback_data="retry_users")]]
         await update.message.reply_text(
@@ -91,7 +92,7 @@ async def register_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # Fetch all group admins
     try:
         admins = await context.bot.get_chat_administrators(group_id)
-    except Exception as e:
+    except Exception:
         await update.message.reply_text(
             "Unable to fetch group members. Please ensure I have admin permissions."
         )
@@ -204,7 +205,7 @@ async def retry_admin_users(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Re-fetch admins
     try:
         admins = await context.bot.get_chat_administrators(group_id)
-    except Exception as e:
+    except Exception:
         await query.edit_message_text(
             "Unable to refresh admin list. Please try again or use /register_manual."
         )
@@ -298,7 +299,7 @@ async def begin_manual_delete_users(
 
     group_id = update.effective_chat.id
     users = repo.list_group_users(group_id)
-    usernames = sorted([user["username"] for user in users], key=str.lower)
+    usernames = sorted(get_usernames(users), key=str.lower)
 
     if not usernames:
         await query.edit_message_text(
