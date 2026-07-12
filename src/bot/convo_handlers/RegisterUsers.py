@@ -8,10 +8,10 @@ from telegram.ext import (
     filters,
 )
 
-from lib.splizy_repo.utils import get_usernames
 from src.bot.convo_handlers.Base import BaseConversation
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.splizy_repo.repo import repo
+from src.lib.splizy_repo.utils import get_usernames
 
 
 class RegisterUsers(BaseConversation):
