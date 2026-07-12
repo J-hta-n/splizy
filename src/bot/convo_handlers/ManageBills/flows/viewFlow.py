@@ -2,6 +2,8 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot.convo_handlers.ManageBills.callbacks import (
+    HIDE_RECEIPT,
+    SHOW_RECEIPT,
     VIEW_ALL_ENTRIES,
     VIEW_PAGE_NEXT,
     VIEW_PAGE_PREV,
@@ -18,6 +20,10 @@ from src.bot.convo_handlers.ManageBills.utils.general import (
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_all_expenses,
     send_expense_view,
+)
+from src.bot.convo_handlers.ManageBills.utils.renderers.index import (
+    send_newly_added_expense_view,
+    send_newly_added_expense_with_receipt_view,
 )
 from src.bot.convo_utils.wrappers import group_only
 from src.lib.splizy_repo.repo import repo
@@ -54,6 +60,19 @@ async def view_expense(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             return ConversationHandler.END
         initialise_viewall_context(data, expenses)
         await send_all_expenses(update, context, False)
+        return ManageBillStates.VIEW_EXPENSE
+
+    # Entry point after submitting receipt via miniapp
+    if query.data == SHOW_RECEIPT:
+        await send_newly_added_expense_with_receipt_view(
+            update, data["temp_expense_with_receipt"]
+        )
+        return ManageBillStates.VIEW_EXPENSE
+
+    if query.data == HIDE_RECEIPT:
+        await send_newly_added_expense_view(
+            update, data["temp_expense_with_receipt"], has_receipt=True
+        )
         return ManageBillStates.VIEW_EXPENSE
 
     # View selected expense

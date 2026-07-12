@@ -1,6 +1,9 @@
 from decimal import Decimal
 
 from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
+from src.bot.convo_handlers.ManageBills.utils.receipt_spendings import (
+    format_receipt_spendings,
+)
 from src.lib.currencies.utils import get_shorthand_currency
 from src.lib.splizy_repo.model import ExpenseRow, PayeeData
 
@@ -44,23 +47,44 @@ def build_payees(data: ManageBillsChatData) -> list[PayeeData]:
 
 def format_saved_expense_summary(
     expense: ExpenseRow,
-    source_label: str = "Expense",
+    has_receipt=False,
+    is_showing_receipt=False,
 ) -> str:
+    source_label = "Receipt" if has_receipt else "Expense"
     currency_symbol = get_shorthand_currency(expense.get("currency"))
     total_amount = float(expense.get("amount"))
     paid_by = expense.get("paid_by")
-    user_spendings = "\n".join(
-        [
-            f"@{payee['user']} - {currency_symbol}{payee['amount']:.2f}"
-            for payee in expense.get("payees")
-        ]
-    )
+    remarks = ""
+
+    if is_showing_receipt:
+        if expense.get("receipt"):
+            user_spendings = format_receipt_spendings(
+                expense["receipt"],
+                [payee["user"] for payee in expense.get("payees")],
+                currency_symbol,
+            )
+        else:
+            user_spendings = "\n".join(
+                [
+                    f"@{payee['user']} - {currency_symbol}{payee['amount']:.2f}"
+                    for payee in expense.get("payees")
+                ]
+            )
+            remarks = "\nerror with parsing receipt details"
+    else:
+        user_spendings = "\n".join(
+            [
+                f"@{payee['user']} - {currency_symbol}{payee['amount']:.2f}"
+                for payee in expense.get("payees")
+            ]
+        )
 
     expense_summary = (
         f"{source_label} saved successfully! Details:\n"
         + f"Total: {currency_symbol}{total_amount:.2f}\n"
         + f"Paid by: @{paid_by}\n"
         + f"User spendings:\n{user_spendings}"
+        + remarks
     )
 
     return expense_summary
