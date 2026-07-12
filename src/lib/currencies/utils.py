@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from typing import Iterable, TypeGuard
+from typing import TypeGuard
 
 from src.lib.currencies.config import (
     CURRENCY_SHORTHAND_MAPPING,
@@ -146,27 +146,3 @@ def build_exchange_rate_line(src_currency: str, dst_currency: str) -> str:
         return f"{src_amount_str} {src} = {rate:.2f} {dst} (as of {as_of_date})"
     except RuntimeError:
         return f"Exchange rate unavailable for {src}/{dst} (as of {as_of_date})"
-
-
-def build_exchange_rate_summary(
-    src_currencies: Iterable[str], dst_currency: str
-) -> str:
-    dst = dst_currency.upper()
-    as_of_date = get_exchange_rates_as_of_date()
-    unique_currencies = sorted(
-        {currency.upper() for currency in src_currencies if currency.upper() != dst}
-    )
-    lines = [f"Exchange rates as of {as_of_date}:"]
-
-    if not unique_currencies:
-        lines.append(f"All expenses already in {dst}.")
-        return "\n".join(lines)
-
-    for src in unique_currencies:
-        try:
-            rate = convert(1.0, dst, src)
-            lines.append(f"1 {dst} = {rate:.2f} {src}")
-        except RuntimeError:
-            lines.append(f"1 {dst} = unavailable {src}")
-
-    return "\n".join(lines)

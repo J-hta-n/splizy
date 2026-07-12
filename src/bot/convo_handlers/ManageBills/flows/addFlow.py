@@ -6,6 +6,7 @@ from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
     build_payees,
     format_saved_expense_summary,
+    populate_context_for_selected_expense_from_viewall,
 )
 from src.bot.convo_handlers.ManageBills.utils.parsers import (
     parse_amount,
@@ -19,16 +20,16 @@ from src.bot.convo_handlers.ManageBills.utils.renderers import (
     send_multiselect_users,
     send_select_user,
 )
-from src.bot.convo_utils.wrappers import group_only
+from src.bot.convo_utils.wrappers import ensure_has_registered_users, group_only
 from src.lib.logger import get_logger
-from src.lib.splizy_repo.service import get_group_expense_setup, save_expense
+from src.lib.splizy_repo.service import get_group_expense_currency, save_expense
 
 logger = get_logger(__name__)
 
 
 @group_only
+@ensure_has_registered_users
 async def add_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.chat_data.clear()
     await update.message.reply_text(
         "Let's add a new expense! Tell me what this is for? Eg 'Hotpot dinner'"
     )
@@ -46,9 +47,8 @@ async def expense_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         await send_confirmation_form(update, context)
         return ManageBillStates.EXPENSE_CONFIRM
 
-    expense_currency, usernames = get_group_expense_setup(update.message.chat.id)
+    expense_currency = get_group_expense_currency(update.message.chat.id)
     context.chat_data["currency"] = expense_currency
-    context.chat_data["all_participants"] = usernames
     await update.message.reply_text(
         f"How much is it in {expense_currency}?\n"
         f"(Prefix with currency code to override, e.g. 'USD 50.10')\n\n"
@@ -129,7 +129,7 @@ async def expense_split_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Since entire keyboard has to be rebuilt on every callback, state is managed with a bool array to minimise latency
         # and to preserve ordering of the inline buttons, as opposed to using a adding/removing strings in a string array
         if "participant_selections" not in data:
-            data["participant_selections"] = [True] * len(data["all_participants"])
+            data["participant_selections"] = [False] * len(data["all_participants"])
         await send_multiselect_users(update, context)
         return ManageBillStates.EXPENSE_PARTICIPANTS
     elif split_type == "split_custom":
@@ -195,22 +195,6 @@ async def expense_participants(
     return ManageBillStates.EXPENSE_CONFIRM
 
 
-async def expense_custom_amount(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> int:
-    is_valid, result = parse_amount(update.message.text)
-    if not is_valid:
-        await update.message.reply_text(result)  # result is error msg if invalid
-        return ManageBillStates.EXPENSE_CUSTOM_AMOUNT
-    _, amount = result
-
-    index = context.chat_data["index"]
-    context.chat_data["custom_amounts"][index] = amount
-
-    await send_custom_multiselect_users(update, context, True)
-    return ManageBillStates.EXPENSE_CUSTOM_SPLIT
-
-
 async def expense_multiplier(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     is_valid, result = parse_multiplier(update.message.text)
     if not is_valid:
@@ -270,8 +254,13 @@ async def expense_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ManageBillStates.EXPENSE_SPLIT_TYPE
     elif action == "cancel_form":
-        # If editing, just go back to expense view
+        # If editing, revert changes and go back to expense view
         if "expenses" in context.chat_data:
+            index = context.chat_data["expense_index"]
+            expense = context.chat_data["expenses"][index]
+            populate_context_for_selected_expense_from_viewall(
+                context.chat_data, expense
+            )
             await send_expense_view(update, context)
             return ManageBillStates.EDIT_OR_GO_BACK
         # If not editing, end convo

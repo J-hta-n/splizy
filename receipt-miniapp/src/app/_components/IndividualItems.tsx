@@ -1,19 +1,22 @@
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, getItemIndivAssignment } from "@/lib/utils";
 import {
   Box,
   Button,
   Card,
   CardContent,
   Chip,
+  IconButton,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { ItemAssignments, ItemSummary, UserIndivSplit } from "@src/lib/types";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 type IndividualItemsProps = {
   users: string[];
   selectedUser: string | null;
-  selectedItemAssignments: ItemAssignments | null;
+  selectedUserItemAssignments: ItemAssignments | null;
   itemSummaries: ItemSummary[];
   currency: string;
   onSelectUser: (user: string) => void;
@@ -80,25 +83,39 @@ const UserCards = ({
 
 const QuantityControl = ({
   value,
+  qtyLeft,
   onMinus,
   onPlus,
 }: {
   value: number;
+  qtyLeft: number;
   onMinus: () => void;
   onPlus: () => void;
 }) => {
+  const isDisabled = value <= 0 && qtyLeft <= 0;
   return (
     <Stack direction="row" spacing={1} alignItems="center">
-      <Button variant="outlined" onClick={onMinus} sx={{ minWidth: 40 }}>
+      <Button
+        variant="outlined"
+        onClick={onMinus}
+        sx={{ minWidth: 40 }}
+        disabled={value <= 0}
+      >
         -
       </Button>
       <Chip
         label={value}
+        disabled={isDisabled}
         color="default"
         variant="outlined"
         sx={{ minWidth: 48, fontWeight: 700 }}
       />
-      <Button variant="outlined" onClick={onPlus} sx={{ minWidth: 40 }}>
+      <Button
+        variant="outlined"
+        onClick={onPlus}
+        sx={{ minWidth: 40 }}
+        disabled={qtyLeft <= 0}
+      >
         +
       </Button>
     </Stack>
@@ -108,7 +125,7 @@ const QuantityControl = ({
 export function IndividualItems({
   users,
   selectedUser,
-  selectedItemAssignments,
+  selectedUserItemAssignments,
   itemSummaries,
   currency,
   onSelectUser,
@@ -121,11 +138,11 @@ export function IndividualItems({
       <Card sx={{ backgroundColor: "#e8f5e9" }}>
         <CardContent>
           <Typography fontWeight={700}>
-            Step 2/3: Please assign individual items
+            Step 2/3: Please assign non-shared items
           </Typography>
           <Typography variant="body2" mt={1}>
-            You can assign specific quantities of items to each user. Currently
-            viewing for: {selectedUser ?? "-"}
+            You can assign non-shared items to specific users. Currently viewing
+            for: {selectedUser ?? "-"}
           </Typography>
         </CardContent>
       </Card>
@@ -139,8 +156,9 @@ export function IndividualItems({
       <Card variant="outlined">
         <CardContent>
           <Stack spacing={1.25}>
-            {itemSummaries.map(({ item, index, unitPrice }) => {
-              const curQty = selectedItemAssignments?.get(index) ?? 0;
+            {itemSummaries.map(({ item, index, unitPrice, indivsQty }) => {
+              const userQty = selectedUserItemAssignments?.get(index) ?? 0;
+              const qtyLeft = item.quantity - indivsQty;
               return (
                 <Box
                   key={index}
@@ -160,16 +178,52 @@ export function IndividualItems({
                       py: 1.25,
                     }}
                   >
-                    <Typography fontWeight={700}>
-                      {item.name || `Item ${index + 1}`}
-                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1,
+                      }}
+                    >
+                      <Typography fontWeight={700}>
+                        {item.name || `Item ${index + 1}`}
+                      </Typography>
+                      <Tooltip
+                        title={getItemIndivAssignment(item.indiv)}
+                        slotProps={{
+                          popper: {
+                            modifiers: [
+                              {
+                                name: "offset",
+                                options: {
+                                  offset: [0, -14],
+                                },
+                              },
+                            ],
+                          },
+                        }}
+                        enterTouchDelay={0}
+                        arrow
+                      >
+                        <IconButton
+                          size="small"
+                          sx={{ p: 0.125, flexShrink: 0, color: "info.main" }}
+                          aria-label="Item info"
+                        >
+                          <InfoOutlinedIcon
+                            sx={{ fontSize: 17, opacity: 0.7 }}
+                          />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                     <Typography variant="body2" color="text.secondary">
-                      {currency} {formatMoney(unitPrice)} | total qty{" "}
-                      {item.quantity}
+                      @{currency} {formatMoney(unitPrice)} | qty left: {qtyLeft}
                     </Typography>
                   </Box>
                   <QuantityControl
-                    value={curQty}
+                    value={userQty}
+                    qtyLeft={qtyLeft}
                     onMinus={() => onAdjustQuantity(index, -1)}
                     onPlus={() => onAdjustQuantity(index, 1)}
                   />

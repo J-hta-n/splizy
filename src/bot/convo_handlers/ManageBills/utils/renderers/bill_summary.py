@@ -9,13 +9,15 @@ def get_bill_summary(data: ManageBillsChatData) -> str:
         split_status = f"equally among everyone ({data['currency']} {get_2dp_str(data['amount']/len(data['all_participants']))} per person)"
     elif data["split_type"] == "equal_some":
         selected_participants = data["selected_participants"]
-        split_status = f"equally among {len(selected_participants)} people (@{', @'.join(selected_participants)}, {data['currency']} {get_2dp_str(data['amount']/len(selected_participants))} per person)"
+        split_status = f"equally among {len(selected_participants)} {'people' if len(selected_participants) > 1 else 'person'} (@{', @'.join(selected_participants)}, {data['currency']} {get_2dp_str(data['amount']/len(selected_participants))} per person)"
     elif data["split_type"] == "custom":
         mult_val = data["mult_val"] if data["has_mult"] else 1
         custom_split_str = "\n".join(
-            f"@{username} - {get_2dp_str(Decimal(str(amount))*Decimal(mult_val))}"
-            for username, amount in zip(
-                data["all_participants"], data["custom_amounts"]
+            f"@{username} - {get_2dp_str(Decimal(str(amount))*Decimal(mult_val)) if is_selected else '0.00'}"
+            for username, amount, is_selected in zip(
+                data["all_participants"],
+                data["custom_amounts"],
+                data["participant_selections"],
             )
         )
         split_status = f"by custom amounts in {data['currency']}{' (Receipt details available)' if data.get('receipt') else ''}\n{custom_split_str}"

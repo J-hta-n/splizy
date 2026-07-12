@@ -42,8 +42,8 @@ type ConfirmItemsProps = {
   users: string[];
   expenseTitle: string;
   paidBy: string;
-  step1GuardError: string | null;
-  totalMismatchWarning: string | null;
+  step1ValidationMessage: string | null;
+  isProceedDisabled: boolean;
   onUpdateExpenseTitle: (value: string) => void;
   onUpdatePaidBy: (value: string) => void;
   onUpdateItem: (
@@ -55,7 +55,11 @@ type ConfirmItemsProps = {
     field: "currency" | "service_charge" | "gst",
     value: string,
   ) => void;
-  onAddItem: () => void;
+  onAddItem: (item: {
+    name: string;
+    quantity: number;
+    subtotal: number;
+  }) => void;
   onRemoveItems: (indices: number[]) => void;
   onNext: () => void;
 };
@@ -65,8 +69,8 @@ export function ConfirmItems({
   users,
   expenseTitle,
   paidBy,
-  step1GuardError,
-  totalMismatchWarning,
+  step1ValidationMessage,
+  isProceedDisabled,
   onUpdateExpenseTitle,
   onUpdatePaidBy,
   onUpdateItem,
@@ -75,12 +79,17 @@ export function ConfirmItems({
   onRemoveItems,
   onNext,
 }: ConfirmItemsProps) {
-  const [deleteMode, setDeleteMode] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<number[]>([]);
+  const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(
+    null,
+  );
+  const [itemModalMode, setItemModalMode] = useState<"add" | "edit" | null>(
+    null,
+  );
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
-  const [draftQty, setDraftQty] = useState(0);
+  const [draftQty, setDraftQty] = useState(1);
   const [draftSubtotal, setDraftSubtotal] = useState("");
+  const [itemModalError, setItemModalError] = useState<string | null>(null);
   const [currencyInputValue, setCurrencyInputValue] = useState(
     receipt.currency,
   );
@@ -96,62 +105,75 @@ export function ConfirmItems({
     }
   }, [receipt.currency, onUpdateMeta]);
 
-  const toggleDeleteChoice = (index: number) => {
-    setPendingDelete((current) =>
-      current.includes(index)
-        ? current.filter((entry) => entry !== index)
-        : [...current, index],
-    );
+  const openDeleteDialog = (index: number) => {
+    setPendingDeleteIndex(index);
   };
 
-  const handleDeleteAction = () => {
-    if (!deleteMode) {
-      setDeleteMode(true);
-      return;
-    }
-    if (pendingDelete.length > 0) {
-      onRemoveItems(pendingDelete);
-    }
-    setPendingDelete([]);
-    setDeleteMode(false);
+  const closeDeleteDialog = () => {
+    setPendingDeleteIndex(null);
+  };
+
+  const confirmDelete = () => {
+    if (pendingDeleteIndex === null) return;
+    onRemoveItems([pendingDeleteIndex]);
+    closeDeleteDialog();
   };
 
   const openEditModal = (index: number) => {
     const item = receipt.items[index];
+    setItemModalMode("edit");
     setEditingIndex(index);
+    setItemModalError(null);
     setDraftName(item.name ?? "");
-    setDraftQty(item.quantity ?? 0);
+    setDraftQty(item.quantity ?? 1);
     setDraftSubtotal(item.subtotal === null ? "" : String(item.subtotal));
   };
 
-  const closeEditModal = () => {
+  const openAddModal = () => {
+    setItemModalMode("add");
     setEditingIndex(null);
+    setItemModalError(null);
+    setDraftName("");
+    setDraftQty(1);
+    setDraftSubtotal("");
+  };
+
+  const closeEditModal = () => {
+    setItemModalMode(null);
+    setEditingIndex(null);
+    setItemModalError(null);
   };
 
   const saveEditModal = () => {
+    const name = draftName.trim();
+    const quantity = Number(draftQty);
+    const subtotal = Number(draftSubtotal);
+
+    if (!name) {
+      setItemModalError("Please enter item name.");
+      return;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setItemModalError("Quantity must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      setItemModalError("Subtotal must be greater than 0.");
+      return;
+    }
+
+    if (itemModalMode === "add") {
+      onAddItem({ name, quantity, subtotal });
+      closeEditModal();
+      return;
+    }
+
     if (editingIndex === null) return;
-    onUpdateItem(editingIndex, "name", draftName);
-    onUpdateItem(editingIndex, "quantity", String(Math.max(0, draftQty)));
-    onUpdateItem(editingIndex, "subtotal", draftSubtotal);
+    onUpdateItem(editingIndex, "name", name);
+    onUpdateItem(editingIndex, "quantity", String(quantity));
+    onUpdateItem(editingIndex, "subtotal", String(subtotal));
     closeEditModal();
   };
-
-  const missingFields: string[] = [];
-  if (!expenseTitle.trim()) {
-    missingFields.push("expense title");
-  }
-  if (!paidBy.trim() || !users.includes(paidBy)) {
-    missingFields.push("paid by");
-  }
-  if (!receipt.currency || !ALL_CURRENCY_CODE_SET.has(receipt.currency)) {
-    missingFields.push("please choose a valid currency code");
-  }
-
-  const isStep1Valid = missingFields.length === 0;
-  const validationMessage =
-    missingFields.length === 1 && missingFields[0].includes("currency")
-      ? missingFields[0]
-      : `please fill in the following fields: ${missingFields.join(", ")}`;
 
   return (
     <>
@@ -164,20 +186,18 @@ export function ConfirmItems({
             <Typography variant="body2" mt={1}>
               Please double check the payer and total cost for this bill
             </Typography>
+            {step1ValidationMessage ? (
+              <Typography
+                color="error.main"
+                mt={1.25}
+                variant="body2"
+                sx={{ whiteSpace: "pre-line" }}
+              >
+                {step1ValidationMessage}
+              </Typography>
+            ) : null}
           </CardContent>
         </Card>
-
-        {step1GuardError ? (
-          <Typography color="error.main" variant="body2">
-            {step1GuardError}
-          </Typography>
-        ) : null}
-
-        {totalMismatchWarning ? (
-          <Typography color="error.main" variant="body2">
-            {totalMismatchWarning}
-          </Typography>
-        ) : null}
 
         <Card variant="outlined">
           <CardContent>
@@ -216,7 +236,7 @@ export function ConfirmItems({
             <Table size="small" sx={{ tableLayout: "fixed", width: "100%" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700, width: "50%" }}>
+                  <TableCell sx={{ fontWeight: 700, width: "46%" }}>
                     Item
                   </TableCell>
                   <TableCell
@@ -226,24 +246,23 @@ export function ConfirmItems({
                     Qty
                   </TableCell>
                   <TableCell
-                    sx={{ fontWeight: 700, width: "20%" }}
+                    sx={{ fontWeight: 700, width: "22%" }}
                     align="right"
                   >
                     Subtotal
                   </TableCell>
                   <TableCell
-                    sx={{ fontWeight: 700, width: "10%" }}
-                    align="center"
+                    sx={{ fontWeight: 700, width: "22%" }}
+                    align="right"
                   >
-                    {deleteMode ? "Delete" : "Edit"}
+                    Edit
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {receipt.items.map((item, index) => {
-                  const marked = pendingDelete.includes(index);
                   return (
-                    <TableRow key={String(index)} selected={marked}>
+                    <TableRow key={String(index)} sx={{ "& td": { py: 1 } }}>
                       <TableCell
                         sx={{
                           whiteSpace: "normal",
@@ -262,25 +281,49 @@ export function ConfirmItems({
                           {formatMoney(item.subtotal ?? 0)}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
-                        {deleteMode ? (
+                      <TableCell
+                        align="right"
+                        sx={{ whiteSpace: "nowrap", pr: 1 }}
+                      >
+                        <Stack direction="row" sx={{ display: "inline-flex" }}>
                           <IconButton
-                            color={marked ? "error" : "default"}
-                            onClick={() => toggleDeleteChoice(index)}
+                            size="small"
+                            color="info"
+                            sx={{ opacity: 0.6 }}
+                            onClick={() => openEditModal(index)}
                           >
-                            <DeleteOutlineIcon />
+                            <EditOutlinedIcon sx={{ fontSize: 20 }} />
                           </IconButton>
-                        ) : (
-                          <IconButton onClick={() => openEditModal(index)}>
-                            <EditOutlinedIcon />
+                          <IconButton
+                            size="small"
+                            color="error"
+                            sx={{ opacity: 0.6 }}
+                            onClick={() => openDeleteDialog(index)}
+                          >
+                            <DeleteOutlineIcon sx={{ fontSize: 20 }} />
                           </IconButton>
-                        )}
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
+
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              mt={2.5}
+              justifyContent="flex-start"
+            >
+              <Button
+                color="secondary"
+                variant="outlined"
+                onClick={openAddModal}
+              >
+                Add new entry
+              </Button>
+            </Stack>
 
             <Stack spacing={1.5} mt={2}>
               <Autocomplete
@@ -320,25 +363,39 @@ export function ConfirmItems({
                 }}
               />
               <TextField
-                value={receipt.service_charge}
+                value={
+                  receipt.service_charge === 0
+                    ? ""
+                    : String(receipt.service_charge)
+                }
                 onChange={(event) =>
                   onUpdateMeta("service_charge", event.target.value)
                 }
                 label="Service charge"
-                type="number"
+                type="text"
+                placeholder="0.00"
                 size="small"
                 slotProps={{
-                  input: { inputProps: { min: 0, step: "0.01" } },
+                  input: {
+                    inputProps: {
+                      inputMode: "decimal",
+                    },
+                  },
                 }}
               />
               <TextField
-                value={receipt.gst}
+                value={receipt.gst === 0 ? "" : String(receipt.gst)}
                 onChange={(event) => onUpdateMeta("gst", event.target.value)}
                 label="GST / tax"
-                type="number"
+                type="text"
+                placeholder="0.00"
                 size="small"
                 slotProps={{
-                  input: { inputProps: { min: 0, step: "0.01" } },
+                  input: {
+                    inputProps: {
+                      inputMode: "decimal",
+                    },
+                  },
                 }}
               />
             </Stack>
@@ -370,53 +427,52 @@ export function ConfirmItems({
                 Total: {formatMoney(receipt.total)} {receipt.currency}
               </Typography>
             </Box>
-
+            {step1ValidationMessage ? (
+              <Typography
+                color="error.main"
+                variant="body2"
+                mt={1.25}
+                sx={{ whiteSpace: "pre-line" }}
+              >
+                {step1ValidationMessage}
+              </Typography>
+            ) : null}
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
               mt={2.5}
-              justifyContent="space-between"
+              mb={5}
             >
-              <Button variant="outlined" onClick={onAddItem}>
-                Add new entry
-              </Button>
-              <Button
-                color={deleteMode ? "error" : "inherit"}
-                variant="outlined"
-                onClick={handleDeleteAction}
-              >
-                {deleteMode ? "Confirm deletion" : "Delete entry"}
-              </Button>
               <Button
                 variant="contained"
                 onClick={onNext}
-                disabled={!isStep1Valid}
+                disabled={isProceedDisabled}
               >
                 Proceed to step 2
               </Button>
             </Stack>
-            {!isStep1Valid ? (
-              <Typography color="error.main" variant="body2" mt={1.25}>
-                {validationMessage}
-              </Typography>
-            ) : null}
           </CardContent>
         </Card>
       </Stack>
 
       <Dialog
-        open={editingIndex !== null}
+        open={itemModalMode !== null}
         onClose={closeEditModal}
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>Edit item</DialogTitle>
+        <DialogTitle>
+          {itemModalMode === "add" ? "Add new item" : "Edit item"}
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={0.5}>
             <TextField
               label="Name"
               value={draftName}
-              onChange={(event) => setDraftName(event.target.value)}
+              onChange={(event) => {
+                setDraftName(event.target.value);
+                setItemModalError(null);
+              }}
               size="small"
               fullWidth
             />
@@ -428,7 +484,10 @@ export function ConfirmItems({
               <Stack direction="row" spacing={1} alignItems="center">
                 <Button
                   variant="outlined"
-                  onClick={() => setDraftQty((prev) => Math.max(0, prev - 1))}
+                  onClick={() => {
+                    setDraftQty((prev) => Math.max(1, prev - 1));
+                    setItemModalError(null);
+                  }}
                   sx={{ minWidth: 40 }}
                 >
                   -
@@ -440,7 +499,10 @@ export function ConfirmItems({
                 </Typography>
                 <Button
                   variant="outlined"
-                  onClick={() => setDraftQty((prev) => prev + 1)}
+                  onClick={() => {
+                    setDraftQty((prev) => prev + 1);
+                    setItemModalError(null);
+                  }}
                   sx={{ minWidth: 40 }}
                 >
                   +
@@ -451,7 +513,10 @@ export function ConfirmItems({
             <TextField
               label="Subtotal"
               value={draftSubtotal}
-              onChange={(event) => setDraftSubtotal(event.target.value)}
+              onChange={(event) => {
+                setDraftSubtotal(event.target.value);
+                setItemModalError(null);
+              }}
               type="text"
               size="small"
               placeholder="0.00"
@@ -464,12 +529,41 @@ export function ConfirmItems({
               }}
               fullWidth
             />
+            {itemModalError ? (
+              <Typography color="error.main" variant="body2">
+                {itemModalError}
+              </Typography>
+            ) : null}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={closeEditModal}>Cancel</Button>
           <Button variant="contained" onClick={saveEditModal}>
-            Save
+            {itemModalMode === "add" ? "Add" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={pendingDeleteIndex !== null}
+        onClose={closeDeleteDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Delete item?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This will remove{" "}
+            {pendingDeleteIndex !== null
+              ? receipt.items[pendingDeleteIndex]?.name || "this item"
+              : "this item"}{" "}
+            from the receipt.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDeleteDialog}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={confirmDelete}>
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

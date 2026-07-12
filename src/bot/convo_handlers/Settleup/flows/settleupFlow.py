@@ -19,6 +19,9 @@ async def settleup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     refresh_exchange_rates_if_stale()
     group_id = update.message.chat.id
     all_expenses = repo.list_expenses(group_id)
+    if not all_expenses:
+        await update.message.reply_text("No expenses logged yet.")
+        return ConversationHandler.END
     settleup_currency = repo.get_group(group_id).get("settleup_currency", "SGD")
     stats, suggested_payments = get_suggested_payments(all_expenses, settleup_currency)
     exchange_rates_summary = build_exchange_rate_summary_for_settleup(
@@ -38,6 +41,9 @@ async def settleup_report_command(
     refresh_exchange_rates_if_stale()
     group_id = update.message.chat.id
     all_expenses = repo.list_expenses(group_id)
+    if not all_expenses:
+        await update.message.reply_text("No expenses logged yet.")
+        return ConversationHandler.END
     settleup_currency = repo.get_group(group_id).get("settleup_currency", "SGD")
 
     await send_settleup_reports(
