@@ -3,16 +3,18 @@ import json
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from src.bot.convo_handlers.ManageBills.context import ManageBillsChatData
 from src.bot.convo_handlers.ManageBills.states import ManageBillStates
 from src.bot.convo_handlers.ManageBills.utils.general import (
-    format_saved_expense_summary,
     populate_context_for_selected_expense_from_viewall,
 )
 from src.bot.convo_handlers.ManageBills.utils.receipt import to_miniapp_receipt
 from src.bot.convo_handlers.ManageBills.utils.renderers import (
-    get_view_all_entries_markup,
     open_miniapp,
     send_expense_view,
+)
+from src.bot.convo_handlers.ManageBills.utils.renderers.index import (
+    send_newly_added_expense_view,
 )
 from src.bot.convo_utils.wrappers import ensure_has_registered_users, group_only
 from src.lib.logger import get_logger
@@ -120,6 +122,7 @@ async def expense_receipt_confirm(
         await send_expense_view(update, context)
         return ManageBillStates.EDIT_OR_GO_BACK
 
+    # Else if newly added, hand over to viewFlow handler
     group_id = query.message.chat.id
     temp_receipt, expense = get_latest_temp_receipt_with_expense(group_id)
 
@@ -140,11 +143,7 @@ async def expense_receipt_confirm(
         )
         return ConversationHandler.END
 
-    await query.edit_message_text(
-        format_saved_expense_summary(
-            expense,
-            source_label="Receipt",
-        ),
-        reply_markup=get_view_all_entries_markup(),
-    )
+    data: ManageBillsChatData = context.chat_data
+    data["temp_expense_with_receipt"] = expense
+    await send_newly_added_expense_view(update, expense, has_receipt=True)
     return ManageBillStates.VIEW_EXPENSE
