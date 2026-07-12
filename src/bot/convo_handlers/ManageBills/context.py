@@ -7,12 +7,12 @@ from src.lib.splizy_repo.model import ExpenseId, ExpenseRow, ReceiptData
 
 
 class ManageBillsChatData(TypedDict, total=False):
-    # View all
+    # View all expenses
     expenses: list[ExpenseRow]
     expense_index: int
     viewall_page: int
     viewall_is_collapsed: bool
-    # Add, view, edit
+    # Add, view, edit a specific expense
     all_participants: list[str]
     participant_selections: list[bool]
     selected_participants: list[str]
@@ -28,3 +28,4 @@ class ManageBillsChatData(TypedDict, total=False):
     currency: str
     receipt: ReceiptData | None
     receipt_detail_message_ids: list[int]
+    temp_expense_with_receipt: ExpenseRow | None
